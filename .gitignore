@@ -6,3 +6,15 @@ inventory*
 *__pycache__*
 **/collections
 **/.ansible
+
+# emacs config files
+.projectile
+.dir-locals.el
+# ansible-vault keys
+*.key
+
+# ansible-builder runtime
+artifacts
+context
+eco-ci-cd-*/requirements-ee.*
+podman-build-args.current.txt

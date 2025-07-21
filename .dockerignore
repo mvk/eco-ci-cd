@@ -1,8 +1,13 @@
 .ansible
 .vscode
+.venv
+.cursor
 .gitignore
 *.md
 .idea
 *__pycache__*
-tests
+eco-ci-cd-*/
 .github
+.projectile
+.dir-locals.el
+*.key
