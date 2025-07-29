@@ -75,7 +75,7 @@ infra-test:	pytest
 
 test-verify:
 	@echo "DEBUG: running $@ with: RAW_ACTUAL_EVENT=$(RAW_ACTUAL_EVENT), ACTUAL_EVENT=$(ACTUAL_EVENT), EXPECTED_EVENT=$(EXPECTED_EVENT)"
-	@cat $(RAW_ACTUAL_EVENT) | jq > $(ACTUAL_EVENT)
+	@cat $(RAW_ACTUAL_EVENT) | jq > $(ACTUAL_EVENT).tmp && mv $(ACTUAL_EVENT).tmp $(ACTUAL_EVENT)
 	@if ! diff --color --unified $(EXPECTED_EVENT) $(ACTUAL_EVENT); then
 		@rc=$$?
 		@echo "test for ci=$(CI_TYPE) failed with rc=$${rc}"
@@ -94,8 +94,8 @@ test:
 	@echo "ANSIBLE_COLLECTIONS_PATH='$(ANSIBLE_COLLECTIONS_PATH)'"
 	@$(WRAPPER) $@
 	$(eval EXPECTED_EVENT = $(PWD)/fixtures/$(CI_TYPE)/event.json)
-	$(eval ACTUAL_EVENT = $(PWD)/curr.event.json)
-	$(eval RAW_ACTUAL_EVENT = $(PWD)/event.json)
+	$(eval ACTUAL_EVENT = $(PWD)/actual-event.json)
+	$(eval RAW_ACTUAL_EVENT = $(PWD)/actual-event.json)
 	$(MAKE) test-verify EXPECTED_EVENT=$(EXPECTED_EVENT) ACTUAL_EVENT=$(ACTUAL_EVENT) RAW_ACTUAL_EVENT=$(RAW_ACTUAL_EVENT)
 
 retest:
