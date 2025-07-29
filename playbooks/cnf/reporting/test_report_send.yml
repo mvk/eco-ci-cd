@@ -55,19 +55,19 @@
         - rs_collector_source | length == 0
         - splunk_source | default("") | length > 0
 
-    - name: Load role redhatci.ocp.test_report_send only for its defaults (not tasks)
+    - name: Load role redhatci.ocp.report_metadata_gen only for its defaults (not tasks)
       ansible.builtin.import_role:
-        name: redhatci.ocp.report_send
+        name: redhatci.ocp.report_metadata_gen
         defaults_from: main.yml
         tasks_from: empty.yml
         public: true
     - name: Validate legal rs_ci_system value
       ansible.builtin.assert:
         that:
-          - rs_ci_system in rs_ci_systems_supported
+          - rs_ci_system in rmg_ci_systems_supported
         fail_msg: |
-          CI system '{{ rs_ci_system }}' is not supported. Supported rs_ci_system values:
-          {%- for item in rs_ci_systems_supported -%}
+          CI system '{{ rs_ci_system }}' is not supported. Supported ci system values:
+          {%- for item in rmg_ci_systems_supported -%}
           "  - '{{ item }}'"
           {%- endfor -%}
       when:
@@ -86,26 +86,33 @@
     - name: Convert JUnit reports convert to json without merging
       ansible.builtin.include_role:
         name: redhatci.ocp.junit2json
+    - name: Read metadata from file
+      ansible.builtin.set_fact:
+        rmg_existing_metadata: "{{ lookup('file', '{{ playbook_dir }}/metadata.json') }}"
+
     - name: Detect metadata
       ansible.builtin.include_role:
         name: redhatci.ocp.report_metadata_gen
       vars:
         rmg_ci_system: "{{ rs_ci_system }}"
-        rmg_ci_type: "{{ rs_ci_type }}"
-        rmg_ci_url: "{{ rs_ci_url }}"
-        rmg_ci_job_id: "{{ rs_ci_job_id }}"
-        rmg_ci_build_id: "{{ rs_ci_build_id }}"
-        rmg_ci_build_url: "{{ rs_ci_build_url }}"
-        rmg_ci_build_number: "{{ rs_ci_build_number }}"
-        rmg_
+        rmg_ci_system_autodetect: true
+        rmg_metadata_output_path: "{{ playbook_dir }}/metadata.json"
+        rmg_debug: true
     - name: Combine tests and metadata
       ansible.builtin.include_role:
         name: redhatci.ocp.report_combine
+      vars:
+        rc_report_path: "{{ junit2_result_merged_file }}"
+        rc_metadata_path: "{{ playbook_dir }}/metadata.json"
+        rc_combined_event_path: "{{ playbook_dir }}/combined-event.json"
+        rc_collector_format: "splunk"
+        rc_event_source: "{{ ansible_hostname }}"
     - name: Upload reports to Splunk
       ansible.builtin.include_role:
         name: redhatci.ocp.report_send
       vars:
-        rs_report_path: "{{ global_json_reports_list[0] }}"
+        rs_combined_event_path: "{{ playbook_dir }}/combined-event.json"
+        rs_event_dump_file:  "{{ playbook_dir }}/actual-event.json"
         rs_collector_target: "{{ splunk_channel }}"
-      when:
-        - global_json_reports_list | default([]) | length > 0
+        rs_event_save: true
+        rs_do_send: false
