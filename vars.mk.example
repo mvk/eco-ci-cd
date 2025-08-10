@@ -3,12 +3,9 @@
 
 # Image configuration
 IMAGE_REGISTRY = quay.io/myorg
-IMAGE_NAME = my-custom-eco-ci-cd
 IMAGE_VENDOR = "My Organization Inc."
 IMAGE_MAINTAINER = "My CI/CD Team"
-IMAGE_DESCRIPTION = "My Custom Ecosystem CI/CD Image"
 IMAGE_LICENSE = "Apache-2.0"
-IMAGE_TITLE = "My ECO CI/CD"
 
 # Build configuration
 SCRIPT_DEBUG = 1
@@ -16,14 +13,10 @@ RESET_VENV = 1
 VENV_DIR = .my-venv
 
 # Git configuration (override auto-detection)
-GIT_REMOTE_NAME = upstream
 GIT_TAG = my-custom-tag
-GIT_SRC_BRANCH = my-feature-branch
-GIT_TRG_BRANCH = development
 
 # Python requirements
 PY_REQS_BASE_PREFIX = requirements-custom
-PY_REQS_PREFIX = requirements-production
 
 # OpenShift Client version:
 OC_MIRROR_URL = https://mirror.openshift.com/pub
@@ -38,13 +31,20 @@ PODMAN_PUSH_PARAMS = --compression-format=zstd
 # Build args file location
 BUILD_ARGS_FILE = my-custom-build-args.txt
 
-# Ansible Environment Variables (now configurable via build args)
+# Ansible Environment Variables (configurable via build args)
+# These become ENV variables in the container
 # ANSIBLE_HOST_KEY_CHECKING = True
 # ANSIBLE_STDOUT_CALLBACK = debug
 # ANSIBLE_COLLECTIONS_PATH = /custom/collections
 # ANSIBLE_ROLES_PATH = /custom/roles
+
+# Python Environment Variables (configurable via build args)
+# These become ENV variables in the container
 # PYTHONUNBUFFERED = 0
 # PYTHONDONTWRITEBYTECODE = 0
+
+# Additional build configuration
+# CHECKSUM = sha256sum  # Checksum utility for different platforms
 
 # CNF Reporting configuration (if needed)
 # Add any cnf-reporting-* specific overrides here
