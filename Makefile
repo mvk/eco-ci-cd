@@ -7,19 +7,14 @@ SCRIPT_DEBUG							?= 0
 RESET_VENV								?= 0
 VENV_DIR								?= .venv
 GIT_REMOTE_NAME							?= origin
-GIT_REPO_URL							?= $(shell git config --get remote.$(GIT_REMOTE_NAME).url)
-GIT_WEB_URL								?= $(shell ./scripts/git_url_norm.py -u $(GIT_REPO_URL))
+GIT_WEB_URL								?= https://github.com/openshift-kni/eco-ci-cd
 GIT_COMMIT_HASH							?= $(shell git rev-parse HEAD)
-GIT_SRC_BRANCH							?= $(shell git rev-parse --abbrev-ref HEAD)
-GIT_TRG_BRANCH							?= $(shell git show-branch -a | grep '\*' | grep -v $(GIT_SRC_BRANCH) | head -n1 | sed -e 's/.*\[\(.*\)\].*/\1/' -e 's/[\^~].*//')
 GIT_TAG									?= $(shell git tag --points-at=HEAD 2>/dev/null)
 IMAGE_NAME								?= $(notdir $(GIT_WEB_URL))
 IMAGE_REGISTRY 							?= quay.io/telcov10n-ci
 IMAGE_VENDOR							?= Red Hat Inc.
 IMAGE_MAINTAINER						?= Telcov10n CI/CD Team
-IMAGE_DESCRIPTION						?= Ecosystem CI/CD Image
 IMAGE_LICENSE							?= GPL-3.0
-IMAGE_TITLE								?= ECO CI/CD
 IMAGE_FULL_NAME							?= $(IMAGE_REGISTRY)/$(IMAGE_NAME)
 PODMAN_PARAMS 							?= 
 PODMAN_BUILD_PARAMS 					?= --platform=linux/amd64
@@ -27,7 +22,7 @@ PODMAN_TAG_PARAMS 						?=
 PODMAN_PUSH_PARAMS 						?=
 BUILD_ARGS_FILE							?= podman-build-args.current.txt
 PY_REQS_BASE_PREFIX						?= requirements-base-dev
-PY_REQS									?= $(PY_REQS_BASE_PREIX)
+PY_REQS									?= $(PY_REQS_BASE_PREFIX)
 ANSIBLE_BUILDER_EXTRA_BUILD_CLI_ARGS	:= $(PODMAN_BUILD_PARAMS) --build-arg-file ../$(BUILD_ARGS_FILE)
 ANSIBLE_BUILDER_VERBOSITY				?= 2
 BUILD_DATE								:= $(shell date -u +'%Y-%m-%dT%H:%M:%SZ%:z')
@@ -53,23 +48,23 @@ define NEWLINE
 
 endef
 
+# OpenShift Client configuration (can be overridden in vars.mk)
+OC_RELEASE								?= 4
+OC_VERSION								?= 4.16.0
+OC_MIRROR_URL							?= https://mirror.openshift.com/pub
+
 # Build arguments template
 define BUILD_ARGS_TEMPLATE
-GIT_REPO_URL=$(GIT_REPO_URL)
 GIT_WEB_URL=$(GIT_WEB_URL)
-GIT_SRC_BRANCH=$(GIT_SRC_BRANCH)
-GIT_TRG_BRANCH=$(GIT_TRG_BRANCH)
 GIT_COMMIT_HASH=$(GIT_COMMIT_HASH)
 GIT_TAG=$(GIT_TAG)
 IMAGE_VENDOR=$(IMAGE_VENDOR)
 IMAGE_MAINTAINER=$(IMAGE_MAINTAINER)
-IMAGE_DESCRIPTION=$(IMAGE_DESCRIPTION)
 IMAGE_LICENSE=$(IMAGE_LICENSE)
-IMAGE_TITLE=$(IMAGE_TITLE)
+BUILD_DATE=$(BUILD_DATE)
 OC_VERSION=$(OC_VERSION)
 OC_RELEASE=$(OC_RELEASE)
 OC_MIRROR_URL=$(OC_MIRROR_URL)
-BUILD_DATE=$(BUILD_DATE)
 endef
 
 
