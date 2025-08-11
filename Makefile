@@ -3,6 +3,7 @@
 # optional include of variables definitions file
 -include vars.mk
 
+RECREATE								?= 0
 SCRIPT_DEBUG							?= 0
 RESET_VENV								?= 0
 VENV_DIR								?= .venv
@@ -15,8 +16,8 @@ IMAGE_VENDOR							?= Red Hat Inc.
 IMAGE_MAINTAINER						?= Telcov10n CI/CD Team
 IMAGE_LICENSE							?= GPL-3.0
 IMAGE_FULL_NAME							?= $(IMAGE_REGISTRY)/$(IMAGE_NAME)
-PODMAN_PARAMS 							?= 
-PODMAN_BUILD_PARAMS 					?= --platform=linux/amd64
+PODMAN_PARAMS 							?=
+PODMAN_BUILD_PARAMS 					?= "--platform=linux/amd64"
 PODMAN_TAG_PARAMS 						?=
 PODMAN_PUSH_PARAMS 						?=
 BUILD_ARGS_FILE							?= podman-build-args.current.txt
@@ -39,6 +40,13 @@ EE_NAV_MODE								?= stdout
 EE_NAV_PULL_POLICY						?= missing
 EE_NAV_EXTRA_VARS						?=
 
+RUN_PLAYBOOK							?= report_send.yml
+TEST_PLAYBOOK							?= test_$(TEST_PLAYBOOK)
+INVENTORY								?= localhost -c local
+ANSIBLE_PARAMS							?= -vv
+CLEANUP_LIST							?= .venv .ansible .pytest_cache __pycache__ 
+CLEANUP_DIRS							?= collections/ansible_collections/*
+
 # Helper text processing variables
 empty :=
 space := $(empty) $(empty)
@@ -48,11 +56,6 @@ ifeq ($(SCRIPT_DEBUG),1)
 	ANSIBLE_BUILDER_EXTRA_BUILD_CLI_ARGS += --log-level debug
 	ANSIBLE_BUILDER_VERBOSITY = 3
 endif
-
-ifeq ($(RESET_VENV),1)
-	rm -rf $(VENV_DIR)
-endif
-
 # Newline template
 define NEWLINE
 
@@ -105,41 +108,41 @@ image-build-args-file:
 image-build:	image-build-args-file
 	@echo "Building image: $(IMAGE_FULL_NAME):$(GIT_COMMIT_HASH)"
 	@echo "Using build-args file: $(BUILD_ARGS_FILE)"
-	@podman \
-		$(PODMAN_PARAMS) \
-		build \
-			$(PODMAN_BUILD_PARAMS) \
-			--build-arg-file $(BUILD_ARGS_FILE) \
-			--tag $(IMAGE_FULL_NAME):$(GIT_COMMIT_HASH) \
-			-f Containerfile \
-			.
+	@CMD=(podman $(PODMAN_PARAMS) build
+			$(PODMAN_BUILD_PARAMS)
+			"--build-arg-file=$(BUILD_ARGS_FILE)"
+			"--tag" "$(IMAGE_FULL_NAME):$(GIT_COMMIT_HASH)"
+			"--file" Containerfile .)
+	@echo "Running command: $${CMD[*]}"
+	"$${CMD[@]}" || { echo "failed building $(EE_FULL_NAME):$(EE_TAG)"; exit 1; }
 	@echo "Image built: $(IMAGE_FULL_NAME):$(GIT_COMMIT_HASH)"
 	@GIT_TAG=$${GIT_TAG:-latest}
 	@echo -n "Tagging it as: $(IMAGE_FULL_NAME):$${GIT_TAG} ..."
-	@podman \
-		$(PODMAN_PARAMS) \
-		tag \
-			$(PODMAN_TAG_PARAMS) \
-			$(IMAGE_FULL_NAME):$(GIT_COMMIT_HASH) \
-			$(IMAGE_FULL_NAME):$${GIT_TAG}
+	@CMD=(
+			podman $(PODMAN_PARAMS) tag
+			$(PODMAN_TAG_PARAMS)
+			"$(IMAGE_FULL_NAME):$(GIT_COMMIT_HASH)"
+			"$(IMAGE_FULL_NAME):$${GIT_TAG}")
+	@echo "Running command: $${CMD[*]}"
+	@"$${CMD[@]}" || { echo "failed building $(EE_FULL_NAME):$(EE_TAG)"; exit 1; }
 	@echo "done"
 
 # Push the image
 image-push:	image-build
 	@echo -n "Pushing: $(IMAGE_FULL_NAME):$(GIT_COMMIT_HASH) ..."
-	@podman \
-		$(PODMAN_PARAMS) \
-		push \
-			$(PODMAN_PUSH_PARAMS) \
-			$(IMAGE_FULL_NAME):$(GIT_COMMIT_HASH)
+	CMD=(podman $(PODMAN_PARAMS) push
+			$(PODMAN_PUSH_PARAMS)
+			"$(IMAGE_FULL_NAME):$(GIT_COMMIT_HASH)")
+	@echo "Running command: $${CMD[*]}"
+	@"$${CMD[@]}" || { echo "failed building $(EE_FULL_NAME):$(EE_TAG)"; exit 1; }
 	@echo " done"
 	@GIT_TAG=$${GIT_TAG:-latest}
 	@echo -n "Pushing: $(IMAGE_FULL_NAME):$${GIT_TAG} ..."
-	@podman \
-		$(PODMAN_PARAMS) \
-		push \
-			$(PODMAN_PUSH_PARAMS) \
-			$(IMAGE_FULL_NAME):$${GIT_TAG}
+	@CMD=(podman $(PODMAN_PARAMS) push
+			$(PODMAN_PUSH_PARAMS)
+			"$(IMAGE_FULL_NAME):$${GIT_TAG}")
+	@echo "Running command: $${CMD[*]}"
+	@"$${CMD[@]}" || { echo "failed building $(EE_FULL_NAME):$(EE_TAG)"; exit 1; }
 	@echo " done"
 
 ################################################################################
@@ -207,7 +210,7 @@ setup-ansible-deps: venv-ensure
 		ansible-galaxy collection install --force --pre -r requirements.yml
 
 # bootstrap = venv-ensure + setup-ansible-deps
-bootstrap: venv-ensure setup-ansible-deps
+bootstrap: setup-ansible-deps
 	@echo "✅ Environment ready"
 
 # ansible-lint - lint playbooks/roles under target folder, defaulting to playbooks/
@@ -224,74 +227,93 @@ test:
 # test-verify - verify test results
 test-verify:
 	@echo "Verifying test results in $(TARGET_DIR)"
-	@$(call run_test_verification)
+	@$(call run_test_verification,$(CI_TYPE))
 
 # retest - clean rebuild and retest
 retest:
-	@$(MAKE) bootstrap RESET_VENV=1
+	@$(MAKE) clean TARGET_DIR=$(TARGET_DIR)
+	@$(MAKE) bootstrap
 	@$(MAKE) test TARGET_DIR=$(TARGET_DIR)
 	@$(MAKE) test-verify TARGET_DIR=$(TARGET_DIR)
 
 # Auto-discover what types of tests exist in TARGET_DIR
 define discover_and_run_tests
+	source $(VENV_DIR)/bin/activate && echo "Activated venv $(VENV_DIR)"
 	@echo "=== Auto-discovering tests in $(TARGET_DIR) ==="
 
-	# 1. Auto-discover Python tests (pytest)
+	@echo "=== Auto-discover Python tests (pytest) ==="
 	@if find $(TARGET_DIR) -name "test_*.py" -o -name "*_test.py" | grep -q .; then \
 		echo "📍 Found Python tests, running pytest"; \
-		source $(VENV_DIR)/bin/activate && pytest -v $(TARGET_DIR); \
+		pytest -v $(TARGET_DIR); \
 	fi
 
+	@echo "=== Discover test playbook for playbook: $(RUN_PLAYBOOK) ==="
 	# 2. Check for Ansible playbook tests (explicit)
-	@if [ -f "$(TARGET_DIR)/report_send.yml" ] && [ -d "$(TARGET_DIR)/fixtures" ]; then \
-		echo "📍 Found Ansible reporting tests"; \
-		$(MAKE) run-ansible-reporting-test TARGET_DIR=$(TARGET_DIR); \
+	@if find $(TARGET_DIR) -maxdepth 1 -name "test_$(RUN_PLAYBOOK)" | grep -q .; then \
+		echo "📍 Found Testing Ansible playbooks"; \
+		$(MAKE) run-ansible-e2e-test TARGET_DIR=$(TARGET_DIR) TEST_PLAYBOOK=test_$(RUN_PLAYBOOK) COMPONENT=$(CI_TYPE); \
 	fi
 
-	# 3. Check for other explicit test patterns
-	@if [ -f "$(TARGET_DIR)/test.yml" ]; then \
-		echo "📍 Found test.yml, running ansible-playbook"; \
-		source $(VENV_DIR)/bin/activate && ansible-playbook -i localhost -c local $(TARGET_DIR)/test.yml; \
+	@echo "=== Check for role test patterns ==="
+	@if [ -f "$(TARGET_DIR)/tests/test.yml" ]; then \
+		echo "📍 Found $(TARGET_DIR)/tests/test.yml, running ansible-playbook"; \
+		ansible-playbook -i localhost -c local $(TARGET_DIR)/tests/test.yml; \
 	fi
 endef
 
-# Specific ansible reporting test runner
-run-ansible-reporting-test:
-	@echo "Running Ansible reporting test for TARGET_DIR=$(TARGET_DIR)"
+# Specific ansible E2E test runner
+run-ansible-e2e-test:
+	@echo "Running Ansible E2E test for TARGET_DIR=$(TARGET_DIR)"
+	@source $(VENV_DIR)/bin/activate && echo "Activated venv $(VENV_DIR)"
+	# Use TEST_PLAYBOOK (default: test_$(RUN_PLAYBOOK))
+	@echo "Using TEST_PLAYBOOK=$(TEST_PLAYBOOK)"
 
-	# Auto-detect available CI types from fixtures
-	$(eval CI_TYPES := $(shell find $(TARGET_DIR)/fixtures -maxdepth 1 -type d -exec basename {} \; 2>/dev/null | grep -v fixtures || echo ""))
-	$(eval CI_TYPE := $(if $(CI_TYPE),$(CI_TYPE),$(word 1,$(CI_TYPES))))
-	@if [ -z "$(CI_TYPE)" ]; then \
-		echo "❌ No CI_TYPE specified and no fixtures found in $(TARGET_DIR)/fixtures/"; \
-		exit 1; \
+	# Auto-detect available components from fixtures if COMPONENT not provided
+	$(eval COMPONENTS := $(shell find $(TARGET_DIR)/fixtures -maxdepth 1 -type d -exec basename {} \; 2>/dev/null | grep -v fixtures || echo ""))
+	$(eval COMPONENT := $(if $(COMPONENT),$(COMPONENT),$(word 1,$(COMPONENTS))))
+	@if [ -z "$(COMPONENT)" ]; then
+		echo "❌ No COMPONENT specified and no fixtures found in $(TARGET_DIR)/fixtures/"
+		exit 1
 	fi
-	@echo "Using CI_TYPE=$(CI_TYPE) (available: $(CI_TYPES))"
-	@echo "Environment file: $(TARGET_DIR)/fixtures/$(CI_TYPE)/env.bash"
-	@echo "Test vars: $(TARGET_DIR)/fixtures/$(CI_TYPE)/test_report_send.yml"
+
+	@echo "Using COMPONENT=$(COMPONENT) (available: $(COMPONENTS))"
+
+	@echo "Environment file: $(TARGET_DIR)/fixtures/$(COMPONENT)/env.bash"
 	# Source environment if it exists
-	@if [ -f "$(TARGET_DIR)/fixtures/$(CI_TYPE)/env.bash" ]; then \
-		echo "Sourcing $(TARGET_DIR)/fixtures/$(CI_TYPE)/env.bash"; \
-		set -a; source $(TARGET_DIR)/fixtures/$(CI_TYPE)/env.bash; set +a; \
+	@if [ -f "$(TARGET_DIR)/fixtures/$(COMPONENT)/env.bash" ]; then
+		echo "Sourcing $(TARGET_DIR)/fixtures/$(COMPONENT)/env.bash"
+		set -a; source $(TARGET_DIR)/fixtures/$(COMPONENT)/env.bash; set +a
 	fi
-	# Run the playbook
-	@source $(VENV_DIR)/bin/activate && \
-		ansible-playbook -i localhost -c local \
-			$(TARGET_DIR)/report_send.yml \
-			-e @$(TARGET_DIR)/fixtures/$(CI_TYPE)/test_report_send.yml \
-			-vv
+
+	@EXTRA_VARS_CHAIN=""
+	# Build extra vars chain and run playbook
+	$(eval FIXTURES_VARS := $(TARGET_DIR)/fixtures/$(COMPONENT)/$(TEST_PLAYBOOK))
+	# Build extra vars chain and run ansible-playbook
+	@if [ -f "$(FIXTURES_VARS)" ]; then
+		echo "Found fixtures vars: $(FIXTURES_VARS)"
+		EXTRA_VARS_CHAIN+=" -e @$(FIXTURES_VARS)"
+	else
+		echo "No fixtures vars found at: $(FIXTURES_VARS)"
+	fi
+	CMD=(ansible-playbook -i $(INVENTORY) $(TARGET_DIR)/$(TEST_PLAYBOOK))
+	CMD+=($${EXTRA_VARS_CHAIN} $(ANSIBLE_PARAMS))
+	@echo "Running: $${CMD[*]}"
+	@$${CMD[@]} || exit 1
 
 # Test verification
 define run_test_verification
-	@if [ -f "$(TARGET_DIR)/fixtures/$(CI_TYPE)/event.json" ] && [ -f "$(TARGET_DIR)/actual-event.json" ]; then \
-		echo "Verifying $(TARGET_DIR)/actual-event.json against $(TARGET_DIR)/fixtures/$(CI_TYPE)/event.json"; \
-		if ! diff --color --unified $(TARGET_DIR)/fixtures/$(CI_TYPE)/event.json $(TARGET_DIR)/actual-event.json; then \
-			echo "❌ Test verification failed"; \
-			exit 1; \
-		fi; \
-		echo "✅ Test verification passed"; \
-	else \
-		echo "⚠️  No verification files found, skipping verification"; \
+	@echo "Running test verification for COMPONENT=$(1)"
+	@EXPECTED_FILE="$(TARGET_DIR)/fixtures/$(1)/event.json"
+	@ACTUAL_FILE="$(TARGET_DIR)/actual-event.json"
+	@if [ -f "$$EXPECTED_FILE" ] && [ -f "$$ACTUAL_FILE" ]; then
+		echo "Verifying $$ACTUAL_FILE against $$EXPECTED_FILE"
+		if ! diff --color --unified "$$EXPECTED_FILE" "$$ACTUAL_FILE"; then
+			echo "❌ Test verification failed"
+			exit 1
+		fi
+		echo "✅ Test verification passed"
+	else
+		echo "⚠️  No verification files found, skipping verification"
 	fi
 endef
 
@@ -315,22 +337,28 @@ ee-sync-requirements:
 
 # Build execution environment using ansible-builder
 ee-build: image-build-args-file venv-ensure ee-sync-requirements
+	@source $(VENV_DIR)/bin/activate && echo "venv $(VENV_DIR) is activated"
 	@echo "Building execution environment: $(EE_FULL_NAME):$(EE_TAG)"
 	@echo "Using build args from: $(BUILD_ARGS_FILE)"
-	@source $(VENV_DIR)/bin/activate && \
-		cd $(EE_DIR) && ansible-builder build \
-			--tag $(EE_FULL_NAME):$(EE_TAG) \
-			--extra-build-cli-args="$(ANSIBLE_BUILDER_EXTRA_BUILD_CLI_ARGS)" \
-			--verbosity $(ANSIBLE_BUILDER_VERBOSITY)
+	@pushd $(PWD) >/dev/null
+	@cd $(EE_DIR)
+	@CMD=(ansible-builder build
+			--tag $(EE_FULL_NAME):$(EE_TAG)
+			--extra-build-cli-args="$(ANSIBLE_BUILDER_EXTRA_BUILD_CLI_ARGS)"
+			--verbosity $(ANSIBLE_BUILDER_VERBOSITY))
+	@echo "Running command: $${CMD[*]}"
+	@"$${CMD[@]}" || { echo "failed building $(EE_FULL_NAME):$(EE_TAG)"; exit 1; }
 	@echo "Execution environment built: $(EE_FULL_NAME):$(EE_TAG)"
 	@GIT_TAG=$${GIT_TAG:-latest}
 	@echo -n "Tagging: $(EE_FULL_NAME):$(EE_TAG) as $(EE_FULL_NAME):$${GIT_TAG} ..."
-	@podman \
+	@CMD=(podman \
 		$(PODMAN_PARAMS) \
 		tag \
 			$(PODMAN_TAG_PARAMS) \
-			$(EE_FULL_NAME):$(EE_TAG) \
-			$(EE_FULL_NAME):$${GIT_TAG}
+			"$(EE_FULL_NAME):$(EE_TAG)" \
+			"$(EE_FULL_NAME):$${GIT_TAG}")
+	@echo "Running command: $${CMD[*]}"
+	@"$${CMD[@]}" || { echo "failed tagging $(EE_FULL_NAME):$${GIT_TAG}"; exit 1; }
 	@echo " done"
 
 # Push execution environment
@@ -384,4 +412,21 @@ ansible-nav-interactive:
 	ansible-navigator \
 		--execution-environment-image $(EE_FULL_NAME):$(EE_TAG) \
 		--mode interactive
+
+# Clean target for test artifacts
+clean:
+	@echo "Cleaning test artifacts..."
+	echo "🧹 Regular clean: removing output directory only"
+	if [ -n "$(TARGET_DIR)" ]; then
+		rm -rf "$(TARGET_DIR)/output"
+	else
+		echo "⚠️  TARGET_DIR not specified, skipping clean"
+		exit 1
+	fi
+	@if [[ $(RECREATE) -ne 0 ]]; then
+		echo "🗑️  RECREATE=1: Deep clean mode"
+		echo "Also removing directories: $(CLEANUP_LIST)"
+		rm -rf $(CLEANUP_LIST)
+	fi
+	@echo "✅ Clean completed"
 
