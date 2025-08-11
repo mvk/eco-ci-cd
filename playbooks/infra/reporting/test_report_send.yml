@@ -109,7 +109,9 @@
         rc_metadata_path: "{{ playbook_dir }}/metadata.json"
         rc_combined_event_path: "{{ playbook_dir }}/combined-event.json"
         rc_collector_format: "splunk"
-        rc_event_source: "{{ ansible_hostname }}"
+        rc_event_source: "{{ rmg_meta_data.ci.url | default(ansible_hostname) }}"
+        rc_event_host: "{{ rs_collector_url | default(splunk_url) }}"
+
     - name: Print env vars
       ansible.builtin.debug:
         msg: "{{ item }}: '{{ lookup('env', item, default='unset') }}'"
