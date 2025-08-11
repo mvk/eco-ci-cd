@@ -245,7 +245,10 @@ class FilterModule:
         """Accumulate statistics from a report into the merged report."""
         # Update numeric statistics directly in merged_report
         for field in ["time", "tests", "failures", "errors", "skipped"]:
-            value = report_data.get(field, 0)
+            value = report_data.get(field, 0.0 if field == "time" else 0)
+            if value is None:
+                # Handle None values by treating them as 0
+                value = 0.0 if field == "time" else 0
             try:
                 if field == "time":
                     merged_report[field] += float(value)
