@@ -61,12 +61,12 @@
         defaults_from: main.yml
         tasks_from: empty.yml
         public: true
-    - name: Validate legal rs_ci_system value
+    - name: Validate legal rmg_ci_system value
       ansible.builtin.assert:
         that:
-          - rs_ci_system in rmg_ci_systems_supported
+          - rmg_ci_system in rmg_ci_systems_supported
         fail_msg: |
-          CI system '{{ rs_ci_system }}' is not supported. Supported ci system values:
+          CI system '{{ rmg_ci_system }}' is not supported. Supported ci system values:
           {%- for item in rmg_ci_systems_supported -%}
           "  - '{{ item }}'"
           {%- endfor -%}
@@ -103,7 +103,9 @@
         rc_metadata_path: "{{ playbook_dir }}/metadata.json"
         rc_combined_event_path: "{{ playbook_dir }}/combined-event.json"
         rc_collector_format: "splunk"
-        rc_event_source: "{{ ansible_hostname }}"
+        rc_event_source: "{{ rmg_meta_data.ci.url | default(ansible_hostname) }}"
+        rc_event_host: "{{ rs_collector_url | default(splunk_url) }}"
+
     - name: Upload reports to Splunk
       ansible.builtin.include_role:
         name: report_send
