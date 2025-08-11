@@ -2,7 +2,7 @@
 - name: Push CI JUnit XML report data to collector
   hosts: localhost
   vars:
-    collection_roles: "collections/ansible_collections/redhatci/ocp/roles"
+    # collection_roles: "collections/ansible_collections/redhatci/ocp/roles"
     target_path: "{{ playbook_dir }}/upload"
     global_json_reports_list: []
   pre_tasks:
@@ -57,7 +57,7 @@
 
     - name: Load role redhatci.ocp.report_metadata_gen only for its defaults (not tasks)
       ansible.builtin.import_role:
-        name: redhatci.ocp.report_metadata_gen
+        name: report_metadata_gen
         defaults_from: main.yml
         tasks_from: empty.yml
         public: true
@@ -85,7 +85,7 @@
   tasks:
     - name: Convert JUnit reports to JSON
       ansible.builtin.include_role:
-        name: redhatci.ocp.junit2json
+        name: junit2json
       vars:
         do_merge: true
       # resulting json file is in "{{ junit2_output_dir }}/{{ junit2_result_merged_file }}"
@@ -95,14 +95,14 @@
 
     - name: Detect metadata
       ansible.builtin.include_role:
-        name: redhatci.ocp.report_metadata_gen
+        name: report_metadata_gen
       vars:
         rmg_ci_system_autodetect: true
         rmg_metadata_output_path: "{{ playbook_dir }}/metadata.json"
         rmg_debug: true
     - name: Combine tests and metadata
       ansible.builtin.include_role:
-        name: redhatci.ocp.report_combine
+        name: report_combine
       vars:
         rc_report_path: "{{ junit2_output_dir }}/{{ junit2_result_merged_file }}"
         rc_metadata_path: "{{ playbook_dir }}/metadata.json"
@@ -111,7 +111,7 @@
         rc_event_source: "{{ ansible_hostname }}"
     - name: Upload reports to Splunk
       ansible.builtin.include_role:
-        name: redhatci.ocp.report_send
+        name: report_send
       vars:
         rs_combined_event_path: "{{ playbook_dir }}/combined-event.json"
         rs_event_dump_file:  "{{ playbook_dir }}/actual-event.json"
