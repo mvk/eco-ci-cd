@@ -88,11 +88,6 @@
         name: junit2json
       vars:
         do_merge: true
-      # resulting json file is in "{{ junit2_output_dir }}/{{ junit2_result_merged_file }}"
-    - name: Read metadata from file
-      ansible.builtin.set_fact:
-        rmg_existing_metadata: "{{ lookup('file', '{{ playbook_dir }}/metadata.json') }}"
-
     - name: Detect metadata
       ansible.builtin.include_role:
         name: report_metadata_gen
@@ -104,7 +99,7 @@
       ansible.builtin.include_role:
         name: report_combine
       vars:
-        rc_report_path: "{{ junit2_output_dir }}/{{ junit2_result_merged_file }}"
+        rc_report_path: "{{ junit2_result_merged_file }}"
         rc_metadata_path: "{{ playbook_dir }}/metadata.json"
         rc_combined_event_path: "{{ playbook_dir }}/combined-event.json"
         rc_collector_format: "splunk"
