@@ -40,17 +40,12 @@ additional_build_steps:
     - ARG TARGETARCH
     - ARG TARGETOS
     # Dynamic build arguments - these will be populated from Makefile
-    - ARG GIT_REPO_URL
     - ARG GIT_WEB_URL
     - ARG GIT_COMMIT_HASH
-    - ARG GIT_SRC_BRANCH="main"
-    - ARG GIT_TRG_BRANCH="main"
     - ARG GIT_TAG
     - ARG IMAGE_VENDOR="Red Hat Inc."
     - ARG IMAGE_MAINTAINER="Telcov10n CI/CD Team"
-    - ARG IMAGE_DESCRIPTION="Ecosystem CI/CD Image"
     - ARG IMAGE_LICENSE="GPL-3.0"
-    - ARG IMAGE_TITLE="ECO CI/CD"
     - ARG BUILD_DATE
     - ARG OC_MIRROR_URL
     - ARG OC_RELEASE
@@ -75,28 +70,14 @@ additional_build_steps:
     - ENV PYTHONUNBUFFERED="${PYTHONUNBUFFERED}"
     - ENV PYTHONDONTWRITEBYTECODE="${PYTHONDONTWRITEBYTECODE}"
 
-    # Dynamic labels using ARG variables
-    - LABEL org.opencontainers.image.authors="${IMAGE_MAINTAINER}"
-    - LABEL org.opencontainers.image.description="${IMAGE_DESCRIPTION}"
-    - LABEL org.opencontainers.image.documentation="${GIT_WEB_URL}/tree/main"
-    - LABEL org.opencontainers.image.licenses="${IMAGE_LICENSE}"
-    - LABEL org.opencontainers.image.source="${GIT_REPO_URL}.git"
-    - LABEL org.opencontainers.image.source.branch="${GIT_SRC_BRANCH}"
-    - LABEL org.opencontainers.image.source.commit="${GIT_COMMIT_HASH}"
-    - LABEL org.opencontainers.image.source.tag="${GIT_TAG}"
-    - LABEL org.opencontainers.image.title="${IMAGE_TITLE}"
-    - LABEL org.opencontainers.image.url="${GIT_WEB_URL}/tree/main"
-    - LABEL org.opencontainers.image.vendor="${IMAGE_VENDOR}"
-    - LABEL org.opencontainers.image.version="${GIT_TAG}"
-    - LABEL org.opencontainers.image.created="${BUILD_DATE}"
-    - LABEL com.redhat.telcov10n.git.source-branch="${GIT_SRC_BRANCH}"
-    - LABEL com.redhat.telcov10n.git.target-branch="${GIT_TRG_BRANCH}"
-    - LABEL org.opencontainers.image.url="${GIT_WEB_URL}/tree/main"
-    - LABEL org.opencontainers.image.documentation="${GIT_WEB_URL}/tree/main"
-    - LABEL org.opencontainers.image.licenses="${IMAGE_LICENSE}"
-    - LABEL org.opencontainers.image.target.platform="${TARGETPLATFORM}"
-    - LABEL org.opencontainers.image.target.platform.architecture="${TARGETARCH}"
-    - LABEL org.opencontainers.image.target.platform.os="${TARGETOS}"
+    # Essential labels for security/compliance and operational workflows
+    - LABEL org.opencontainers.image.created="${BUILD_DATE}" \
+      org.opencontainers.image.authors="${IMAGE_MAINTAINER}" \
+      org.opencontainers.image.vendor="${IMAGE_VENDOR}" \
+      org.opencontainers.image.licenses="${IMAGE_LICENSE}" \
+      org.opencontainers.image.source="${GIT_WEB_URL}.git" \
+      org.opencontainers.image.revision="${GIT_COMMIT_HASH}" \
+      org.opencontainers.image.version="${GIT_TAG}"
 
   append_base:
     # Update system and install required packages
