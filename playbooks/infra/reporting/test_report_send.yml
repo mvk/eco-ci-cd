@@ -126,5 +126,8 @@
         rs_combined_event_path: "{{ playbook_dir }}/combined-event.json"
         rs_event_dump_file:  "{{ playbook_dir }}/actual-event.json"
         rs_collector_target: "{{ splunk_channel }}"
+        rs_collector_url: "{{ splunk_url }}"
+        rs_collector_auth_token: "{{ splunk_token }}"
+        rs_collector_source: "{{ splunk_source }}"
         rs_event_save: true
         rs_do_send: true
