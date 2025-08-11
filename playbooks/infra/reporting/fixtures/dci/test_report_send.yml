@@ -17,5 +17,5 @@ rmg_existing_metadata_path: "{{ playbook_dir }}/fixtures/dci/metadata.json"
 junit2_output_dir: output
 rs_event_save: true
 rs_do_send: false
-rs_event_dump_file: "{{ playbook_dir }}/event.json"
+rs_event_dump_file: "{{ playbook_dir }}/actual-event.json"
 # --- End of variables for playbook test_report_send.yml ---
