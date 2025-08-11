@@ -18,3 +18,9 @@ artifacts
 context
 eco-ci-cd-*/requirements-ee.*
 podman-build-args.current.txt
+# temp artifacts folders
+output/
+vars/
+vars.mk
+venv-*/
+.venv
