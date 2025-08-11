@@ -1,103 +1,54 @@
-# include optional local variables overrides file:
--include vars.local.mk
-# include variables definitions file
-include vars.mk
+# Simplified Makefile for infra/reporting
+# This now defers to the root Makefile for most operations
 
-# $(warning DEBUG: Inside Makefile - COLLECTION_REQ_FILES_TXT = "$(COLLECTION_REQ_FILES_TXT)")
+REPO_ROOT := $(shell git rev-parse --show-toplevel)
+TARGET_DIR := $(CURDIR)
 
-# Destination for the modified requirements.yml
-DST_REQS = requirements.yml
-# Source requirements.yml, using git rev-parse for the repository root
-SRC_REQS = $(shell git rev-parse --show-toplevel)/$(DST_REQS)
+# Default CI type
+CI_TYPE ?= dci
 
-APPS = $(PY) ansible-playbook ansible-galaxy yq diff
-APPS_DEV := $(APPS) pylint ansible-lint shellcheck
-KEEP_ARTIFACTS ?= false
-CLEANUP_LIST := $(ANSIBLE_COLLECTIONS_PATH) $(CACHE_PATHS)	$(HOME)/.ansible/collections
-
-.ONESHELL:
-.DEFAULT_TARGETS: bootstrap
-.PHONY: check-requirements
-
-# Asserts applications are available on PATH
-check-requirements:
-	@APPS=($(APPS))
-	@if [[ "$${DEV_MODE}" -gt 0 ]]; then
-		@APPS=($(APPS_DEV))
-	@fi
-	@$(WRAPPER) "$@" "$${APPS[@]}"
-
-# Resets collections requirements
-reset-collections-reqs:
-	$(MAKE) check-requirements
-	@if echo "$(COLLECTION_REQ_FILES_TXT)" | grep -q ","; then
-		@echo "DEL_COLLECTIONS: $(DEL_COLLECTIONS)"
-		$(WRAPPER) "$@" $(SRC_REQS) $(DEL_COLLECTIONS) $(DST_REQS)
-	@fi
-
-# Cleans up caches
-clean-caches:	$(CLEANUP_LIST)
-	@rm -fr "$^"
-
-# Bootstraps the environment - venv, sets up collections, etc.
+# Backward compatibility targets - defer to root Makefile
 bootstrap:
-	@if [[ "$(RECREATE)" -gt 0 ]]; then
-		@$(MAKE) clean-caches
-	@fi
-	@export COLLECTION_REQ_FILES_TXT="$(COLLECTION_REQ_FILES_TXT)"
-	@$(WRAPPER) $@
-
-# Generates data for the report
-gendata:
-	@$(WRAPPER) $@ || ""
-
-render:
-	@$(WRAPPER) $@ EXTRA_VARS=$(EXTRA_VARS)
-
-run-playbook:
-	@$(WRAPPER) $@
-
-pylint: $(GENERATOR)
-	@pylint $(GENERATOR)
-
-ansible-lint: $(PLAYBOOK)
-	@ansible-lint $(PLAYBOOK)
-
-shellcheck: $(WRAPPER)
-	@shellcheck -o all $(WRAPPER)
-
-infra-lint:	pylint	ansible-lint shellcheck
-
-pytest:
-	@pytest -v ./tools
-
-infra-test:	pytest
-
-test-verify:
-	@echo "DEBUG: running $@ with: RAW_ACTUAL_EVENT=$(RAW_ACTUAL_EVENT), ACTUAL_EVENT=$(ACTUAL_EVENT), EXPECTED_EVENT=$(EXPECTED_EVENT)"
-	@cat $(RAW_ACTUAL_EVENT) | jq > $(ACTUAL_EVENT).tmp && mv $(ACTUAL_EVENT).tmp $(ACTUAL_EVENT)
-	@if ! diff --color --unified $(EXPECTED_EVENT) $(ACTUAL_EVENT); then
-		@rc=$$?
-		@echo "test for ci=$(CI_TYPE) failed with rc=$${rc}"
-		@echo "ACTION ITEMS: review the formatted event $(ACTUAL_EVENT) and compare it to $(EXPECTED_EVENT)"
-		@exit "$${rc}"
-	@fi
-	@echo "test for $(CI_TYPE) have passed."
-	@if [[ "$(KEEP_ARTIFACTS)" -gt 0 ]]; then
-		@echo "Keeping artifacts. [REASON: KEEP_ARTIFACTS=$(KEEP_ARTIFACTS)]"
-		@exit 0
-	@fi
-	@rm $(RAW_ACTUAL_EVENT) $(ACTUAL_EVENT)
-	@echo "Deleted $(RAW_ACTUAL_EVENT) and $(ACTUAL_EVENT). [REASON: KEEP_ARTIFACTS=$(KEEP_ARTIFACTS)]"
+	@cd $(REPO_ROOT) && $(MAKE) bootstrap
 
 test:
-	@echo "ANSIBLE_COLLECTIONS_PATH='$(ANSIBLE_COLLECTIONS_PATH)'"
-	@$(WRAPPER) $@
-	$(eval EXPECTED_EVENT = $(PWD)/fixtures/$(CI_TYPE)/event.json)
-	$(eval ACTUAL_EVENT = $(PWD)/actual-event.json)
-	$(eval RAW_ACTUAL_EVENT = $(PWD)/actual-event.json)
-	$(MAKE) test-verify EXPECTED_EVENT=$(EXPECTED_EVENT) ACTUAL_EVENT=$(ACTUAL_EVENT) RAW_ACTUAL_EVENT=$(RAW_ACTUAL_EVENT)
+	@cd $(REPO_ROOT) && $(MAKE) test TARGET_DIR=$(TARGET_DIR) CI_TYPE=$(CI_TYPE)
+
+test-verify:
+	@cd $(REPO_ROOT) && $(MAKE) test-verify TARGET_DIR=$(TARGET_DIR) CI_TYPE=$(CI_TYPE)
 
 retest:
-	$(MAKE) bootstrap RECREATE=1
-	$(MAKE) test
+	@cd $(REPO_ROOT) && $(MAKE) retest TARGET_DIR=$(TARGET_DIR) CI_TYPE=$(CI_TYPE)
+
+ansible-lint:
+	@cd $(REPO_ROOT) && $(MAKE) ansible-lint TARGET_DIR=$(TARGET_DIR)
+
+# Python testing (pytest) for local tools
+pytest:
+	@cd $(REPO_ROOT) && source .venv/bin/activate && pytest -v $(TARGET_DIR)/tools
+
+# Legacy targets that are now obsolete
+gendata render run-playbook reset-collections-reqs clean-caches:
+	@echo "⚠️  Target '$@' is obsolete. Use simplified targets: bootstrap, test, test-verify, retest"
+	@echo "💡 For CI_TYPE specific tests: make test CI_TYPE=jenkins"
+
+# Show available targets
+help:
+	@echo "Available targets:"
+	@echo "  bootstrap     - Set up environment (venv + ansible collections)"
+	@echo "  test          - Run tests (auto-discover python + ansible)"
+	@echo "  test-verify   - Verify test results against expected output"
+	@echo "  retest        - Clean rebuild + test + verify"
+	@echo "  ansible-lint  - Run ansible-lint on this directory"
+	@echo "  pytest        - Run pytest on tools/ directory"
+	@echo ""
+	@echo "Variables:"
+	@echo "  CI_TYPE       - Set CI type for testing (default: dci)"
+	@echo "                  Available: $(shell find fixtures -maxdepth 1 -type d -exec basename {} \\; 2>/dev/null | grep -v fixtures | tr '\\n' ' ')"
+	@echo ""
+	@echo "Examples:"
+	@echo "  make test                    # Test with default CI_TYPE=dci"
+	@echo "  make test CI_TYPE=jenkins    # Test with jenkins fixtures"
+	@echo "  make retest CI_TYPE=github   # Full clean test cycle"
+
+.PHONY: bootstrap test test-verify retest ansible-lint pytest help gendata render run-playbook reset-collections-reqs clean-caches
