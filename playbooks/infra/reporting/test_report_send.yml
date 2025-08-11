@@ -61,12 +61,12 @@
         defaults_from: main.yml
         tasks_from: empty.yml
         public: true
-    - name: Validate legal rs_ci_system value
+    - name: Validate legal rmg_ci_system value
       ansible.builtin.assert:
         that:
-          - rs_ci_system in rmg_ci_systems_supported
+          - rmg_ci_system in rmg_ci_systems_supported
         fail_msg: |
-          CI system '{{ rs_ci_system }}' is not supported. Supported ci system values:
+          CI system '{{ rmg_ci_system }}' is not supported. Supported ci system values:
           {%- for item in rmg_ci_systems_supported -%}
           "  - '{{ item }}'"
           {%- endfor -%}
@@ -91,8 +91,8 @@
       # resulting json file is in "{{ junit2_output_dir }}/{{ junit2_result_merged_file }}"
     - name: Read metadata from file
       ansible.builtin.set_fact:
-        rmg_existing_metadata_path: "{{ playbook_dir }}/fixtures/{{ rs_ci_system }}/metadata.json"
-      when: rs_ci_system == 'dci'
+        rmg_existing_metadata_path: "{{ playbook_dir }}/fixtures/{{ rmg_ci_system }}/metadata.json"
+      when: rmg_ci_system == 'dci'
 
     - name: Detect metadata
       ansible.builtin.include_role:
@@ -110,6 +110,15 @@
         rc_combined_event_path: "{{ playbook_dir }}/combined-event.json"
         rc_collector_format: "splunk"
         rc_event_source: "{{ ansible_hostname }}"
+    - name: Print env vars
+      ansible.builtin.debug:
+        msg: "{{ item }}: '{{ lookup('env', item, default='unset') }}'"
+      loop:
+        - DCI_CS_URL
+        - GITHUB_API_URL
+        - GITLAB_CI
+        - JENKINS_URL
+
     - name: Upload reports to Splunk
       ansible.builtin.include_role:
         name: report_send
