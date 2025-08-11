@@ -381,6 +381,8 @@ def _calculate_totals_from_suites(
         totals["failures"] = sum(suite.get("failures", 0) for suite in test_suites)
     if testsuites_elem.get("errors") is None:
         totals["errors"] = sum(suite.get("errors", 0) for suite in test_suites)
+    if testsuites_elem.get("time") is None:
+        totals["time"] = sum(suite.get("time", 0.0) for suite in test_suites)
 
     return totals
 
