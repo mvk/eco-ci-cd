@@ -40,6 +40,10 @@
     - rs_event_save | default(false)
     - rs_event_dump_file | default('') | length > 0
 
+- name: Print rs_event_payload for debugging
+  ansible.builtin.debug:
+    msg: "Saved the event to {{ rs_event_dump_file }}"
+
 - name: Send data to {{ rs_collector }}
   ansible.builtin.uri:
     url: "{{ rs_collector_url }}"
