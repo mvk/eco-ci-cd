@@ -16,3 +16,4 @@ collections/
 .dir-locals.el
 *.key
 playbooks/infra/reporting/vars/
+playbooks/cnf/reporting
