@@ -6,8 +6,8 @@ argument_specs:
     short_description: Generate CI metadata for test reporting
     description: |
       This role detects the CI system from environment variables and generates
-      structured metadata for test reporting. It supports DCI, Jenkins, and other
-      CI systems.
+      structured metadata for test reporting.
+      It supports DCI, Jenkins, and other CI systems.
     options:
       rmg_ci_system:
         description: CI system type (auto-detected if not specified)
@@ -41,3 +41,4 @@ argument_specs:
         type: bool
         required: false
         default: false
+
