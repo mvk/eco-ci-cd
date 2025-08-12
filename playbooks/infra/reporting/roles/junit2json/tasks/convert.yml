@@ -33,7 +33,7 @@
 
 - name: Write the json data to file
   ansible.builtin.copy:
-    content: "{{ junit2_result_data | junit2obj | to_nice_json }}"
+    content: "{{ junit2_result_data | junit2obj | to_nice_json(indent=2) }}"
     dest: "{{ junit2_output_report_path }}"
     mode: '0644'
   when: not junit2_out_str | bool

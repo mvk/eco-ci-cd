@@ -64,7 +64,7 @@
 
 - name: Write metadata to output file
   ansible.builtin.copy:
-    content: "{{ rmg_meta_data | to_nice_json }}"
+    content: "{{ rmg_meta_data | to_nice_json(indent=2) }}"
     dest: "{{ rmg_metadata_output_path }}"
     mode: '0644'
   when:

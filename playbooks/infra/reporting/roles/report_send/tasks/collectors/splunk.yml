@@ -33,7 +33,7 @@
 
 - name: Save event to file for debugging
   ansible.builtin.copy:
-    content: "{{ rs_event_payload | to_nice_json }}"
+    content: "{{ rs_event_payload | to_nice_json(indent=2) }}"
     dest: "{{ rs_event_dump_file }}"
     mode: '0644'
   when:
