@@ -15,6 +15,11 @@ VENV_DIR = .my-venv
 # Git configuration (override auto-detection)
 GIT_TAG = my-custom-tag
 
+# Execution Environment configuration
+EE_DIR = my-custom-ee-dir
+EE_NAME = my-custom-ee
+EE_BUILD_PLATFORM = linux/mips64
+
 # Python requirements
 PY_REQS_BASE_PREFIX = requirements-custom
 
