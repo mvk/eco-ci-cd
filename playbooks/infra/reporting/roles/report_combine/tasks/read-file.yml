@@ -17,7 +17,7 @@
   ansible.builtin.set_fact:
     "{{ _rc_file_item.name }}": "{{ _rc_file_read.content | b64decode | from_json | default({}) }}"
 
-- name: "Verify the data is not empty (mandatory={{ _rc_file_item.mandatory | default(false) | str}})"
+- name: "Verify the data is not empty (mandatory={{ _rc_file_item.mandatory | default(false) | string }})"
   ansible.builtin.assert:
     that:
       - vars[_rc_file_item.name] | default({}) | length > 0
@@ -33,7 +33,7 @@
   ansible.builtin.debug:
     msg: "NOTE: this run of the role has an empty data in {{_rc_file_item.path}}"
   when:
-    - not (_rc_file_item.mandatory | default(false)
+    - not (_rc_file_item.mandatory | default(false))
     - vars[_rc_file_item.name] | length == 0
 
 - name: "Print {{ _rc_file_item.name }} (vebosity>=3)"

@@ -10,8 +10,8 @@ rc_metadata_path: ""
 rc_combined_event_path: "{{ playbook_dir }}/output/combined-event.json"
 
 # Event structure configuration
-rc_event_source: "{{ rc_meta_data.ci.url | default(ansible_hostname) }}"
-rc_event_host: "{{ splunk_url | default(ansible_hostname) }}"
+rc_event_source: "{{ ansible_hostname }}"
+rc_event_host: "{{ ansible_hostname }}"
 rc_event_sourcetype: "_json"
 
 # Collector-specific formatting
