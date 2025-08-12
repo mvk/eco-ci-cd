@@ -50,6 +50,7 @@ WORKDIR /eco-ci-cd
 # Update system and install required packages
 RUN dnf -y update && \
     dnf -y install --setopt=install_weak_deps=False --setopt=tsdocs=False \
+        bash \
         git \
         gzip \
         krb5-devel \
@@ -60,10 +61,7 @@ RUN dnf -y update && \
         python3.11-setuptools \
         python3.11-wheel \
         sshpass \
-        bash \
-        tar \
-    && \
-    dnf clean all
+        tar
 
 # Download, extract, and clean up the OpenShift client binary (oc)
 RUN if ! curl -LO -f "${OC_ROOT_URL}/${OC_PACKAGE}"; then rc=$?; echo "Failed to download ${OC_ROOT_URL}/${OC_PACKAGE} rc=${rc}"; exit "${rc}"; fi
@@ -80,7 +78,7 @@ RUN alternatives --install /usr/bin/python3 python3 /usr/bin/python3.9 1 && \
     alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 2
 
 # Copy application files to eco-ci-cd folder
-COPY . .
+COPY . /eco-ci-cd/
 
 # Update pip, wheel, etc.
 RUN python3.11 -m pip \
@@ -97,6 +95,15 @@ RUN python3.11 -m pip \
 
 # Install requirements
 RUN ansible-galaxy collection install --force -r requirements.yml
+
+# Clean up unnecessary files in the same layer
+RUN find / -name "*.h" -delete && \
+        find / -name "*.c" -delete && \
+        find /usr/share/man -type f -delete && \
+        find /usr/share/doc -type f -delete && \
+        rm -rf /var/cache/yum/* && \
+        rm -rf /var/cache/dnf/* && \
+        dnf clean all
 
 # Set entrypoint to bash
 ENTRYPOINT ["/bin/bash"]
