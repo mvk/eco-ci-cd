@@ -13,7 +13,7 @@ rmg_ci_systems_supported:
   - unknown
 
 # Output configuration
-rmg_metadata_output_path: "{{ playbook_dir }}/metadata.json"
+rmg_metadata_output_path: "{{ playbook_dir }}/output/metadata.json"
 rmg_metadata_output_format: json
 
 # Default timestamp

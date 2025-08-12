@@ -22,7 +22,7 @@ rs_allow_self_signed_certs: false
 # Debug and output
 rs_debug: false
 rs_event_save: "{{ rs_debug | default(false) }}"
-rs_event_dump_file: "{{ playbook_dir }}/event.json"
+rs_event_dump_file: "{{ playbook_dir }}/output/actual-event.json"
 
 # Supported collectors
 rs_collectors_supported:
