@@ -6,6 +6,10 @@
 - name: Check whether existing metadata exists
   ansible.builtin.include_tasks:
     file: "metadata-check.yml"
+  when:
+    - rmg_existing_metadata | default({}) | length == 0
+    - rmg_existing_metadata_path is defined
+    - rmg_existing_metadata_path | length > 0
 
 - name: Initialize metadata with existing data
   ansible.builtin.set_fact:
