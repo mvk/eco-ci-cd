@@ -50,6 +50,7 @@ CLEANUP_DIRS							?= collections/ansible_collections/*
 # Helper text processing variables
 empty :=
 space := $(empty) $(empty)
+comma := ,
 
 ifeq ($(SCRIPT_DEBUG),1)
 	PODMAN_PARAMS += --log-level debug
@@ -165,34 +166,51 @@ venv-ensure:
 	done
 
 python-deps-update:	venv-ensure
-	source $(VENV_DIR)/bin/activate && echo "Venv $(VENV_DIR) activated"
-	@echo "Updating python dependencies"
-	CMD=(pip-compile --strip-extras)
-	if [ -f $(PY_REQS).txt ]; then
-		CMD+=(--upgrade)
-	else \
-		CMD+=(--annotate)
-	fi
-	CMD+=($(PY_REQS).in)
-	CMD+=(-o $(PY_REQS).txt)
-	if [ "${SCRIPT_DEBUG}" -eq 1 ]; then \
-		CMD+=(--verbose); \
-		echo "Running: $${CMD[*]}"
-	fi
-	$${CMD[@]}
+	@source $(VENV_DIR)/bin/activate && echo "Venv $(VENV_DIR) activated"
+	@for req in $(PY_REQS); do
+		@if ! [[ -f $${req}.in ]]; then
+			@echo "Skipping $${req}.txt, file $${req}.in not found"
+			continue
+		fi
+		@echo "Updating python dependencies for $${req}.txt"
+		CMD=(pip-compile --strip-extras)
+		@if [[ -f $${req}.txt ]]; then
+			CMD+=(--upgrade)
+		else
+			CMD+=(--annotate)
+		fi
+		CMD+=($${req}.in)
+		CMD+=(-o $${req}.txt)
+		@if [[ $(SCRIPT_DEBUG) -gt 0 ]]; then
+			CMD+=(--verbose);
+			@echo "Running: $${CMD[*]}"
+		fi
+		@$${CMD[@]} || exit $$?
+	done
 
 python-deps-update-interactive:	venv-ensure
 	@echo "Updating python dependencies interactively"
-	source $(VENV_DIR)/bin/activate && echo "Venv $(VENV_DIR) activated"
-	CMD=(pip-compile)
-	CMD+=($(PY_REQS).in)
-	CMD+=(-o $(PY_REQS).txt)
-	CMD+=(--interactive)
+	@source $(VENV_DIR)/bin/activate && echo "Venv $(VENV_DIR) activated"
+	@for req in $(PY_REQS); do
+		@if ! [[ -f "$${req}.in" ]]; then
+			@echo "Skipping $${req}.txt, file $${req}.in not found"
+			continue
+		fi
+		CMD=(pip-compile)
+		CMD+=($${req}.in)
+		CMD+=(-o $${req}.txt)
+		CMD+=(--interactive)
+		@if [ $(SCRIPT_DEBUG) -eq 1 ]; then
+			CMD+=(--verbose);
+			echo "Running: $${CMD[*]}"
+		fi
+		@$${CMD[@]} || exit $$?
+	done
 
 python-deps-save:	venv-ensure	python-deps-update
 	@echo "Saving python dependencies"
-	GIT_PAGER=cat git diff $(PY_REQS).txt
-	git add $(PY_REQS).txt
+	GIT_PAGER=cat git diff {$(subst $(space),$(comma),$(PY_REQS))}.txt
+	git add {$(subst $(space),$(comma),$(PY_REQS))}.txt
 	git commit -s -m "Automatic Update of python dependencies done on $(shell date)"
 
 
