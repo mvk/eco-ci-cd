@@ -5,11 +5,14 @@
 .gitignore
 *.md
 .idea
-*__pycache__*
+*.log
+__pycache__/
+.pytest_cache/
 eco-ci-cd-*/
+artifacts/
+collections/
 .github
 .projectile
 .dir-locals.el
 *.key
-playbooks/cnf/reporting/vars/
 playbooks/infra/reporting/vars/
