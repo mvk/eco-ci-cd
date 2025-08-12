@@ -4,108 +4,75 @@
 
 ## report_send
 
-
-
 Description: Role to send pre-combined event data to collectors
-
-
-
-
-
-
 
 <details>
 <summary><b>🧩 Argument Specifications in meta/argument_specs</b></summary>
 
-#### Key: main 
+### Key: main
+
 **Description**: This role sends event data file to supported collectors.
 It handles authentication, data validation, and transmission.
 Input should be a JSON file with the event already formatted for the target collector.
 The data is usually prepared by 3 other roles in this collection:
-  1. `redhatci.ocp.junit2json` - converts JUnit XMLs to single test report JSON file
-  2. `redhatci.ocp.report_metadata_gen` - merges metadata from environment and a metadata file if available
-  3. `redhatci.ocp.report_combine` - combines 1 + 2 into a single JSON event file
 
+  1. `junit2json` - converts JUnit XMLs to single test report JSON file
+  2. `report_metadata_gen` - merges metadata from environment and a metadata file if available
+  3. `report_combine` - combines 1 + 2 into a single JSON event file
 
+- **rs_combined_event_path**
+  - **Required**: True
+  - **Type**: str
+  - **Default**: none
+  - **Description**: Path to the pre-combined event JSON file
+  
+- **rs_collector_url**
+  - **Required**: True
+  - **Type**: str
+  - **Default**: none
+  - **Description**: URL of the collector server
+  
+- **rs_collector_auth_token**
+  - **Required**: False
+  - **Type**: str
+  - **Default**:
+  - **Description**: Authentication token for the collector
+  
+- **rs_collector_target**
+  - **Required**: False
+  - **Type**: str
+  - **Default**:
+  - **Description**: Collector target/channel/topic identifier
+  
+- **rs_collector_source**
+  - **Required**: False
+  - **Type**: str
+  - **Default**:
+  - **Description**: Override source in event payload
+  
+- **rs_collector**
+  - **Required**: False
+  - **Type**: str
+  - **Default**: splunk
+  - **Description**: Type of collector to use
+  
+    - **Choices**:
 
-  - **rs_combined_event_path**
-    - **Required**: True
-    - **Type**: str
-    - **Default**: none
-    - **Description**: Path to the pre-combined event JSON file
-  
-  
-  
+      - splunk
 
-  - **rs_collector_url**
-    - **Required**: True
-    - **Type**: str
-    - **Default**: none
-    - **Description**: URL of the collector server
+- **rs_do_send**
+  - **Required**: False
+  - **Type**: bool
+  - **Default**: True
+  - **Description**: Whether to actually send the data
   
-  
-  
-
-  - **rs_collector_auth_token**
-    - **Required**: False
-    - **Type**: str
-    - **Default**: 
-    - **Description**: Authentication token for the collector
-  
-  
-  
-
-  - **rs_collector_target**
-    - **Required**: False
-    - **Type**: str
-    - **Default**: 
-    - **Description**: Collector target/channel/topic identifier
-  
-  
-  
-
-  - **rs_collector_source**
-    - **Required**: False
-    - **Type**: str
-    - **Default**: 
-    - **Description**: Override source in event payload
-  
-  
-  
-
-  - **rs_collector**
-    - **Required**: False
-    - **Type**: str
-    - **Default**: splunk
-    - **Description**: Type of collector to use
-  
-      - **Choices**: 
-    
-          - splunk
-    
-  
-  
-  
-
-  - **rs_do_send**
-    - **Required**: False
-    - **Type**: bool
-    - **Default**: True
-    - **Description**: Whether to actually send the data
-  
-  
-  
-
-
-
 </details>
-
 
 ### Defaults
 
-**These are static variables with lower priority**
+#### **These are static variables with lower priority**
 
-#### File: defaults/main.yml
+#### File: `defaults/main.yml`
 
 | Var          | Type         | Value       |Required    | Title       |
 |--------------|--------------|-------------|-------------|-------------|
@@ -119,25 +86,20 @@ The data is usually prepared by 3 other roles in this collection:
 | [rs_do_send](defaults/main.yml#L19)   | bool   | `True` |    n/a  |  n/a |
 | [rs_allow_self_signed_certs](defaults/main.yml#L20)   | bool   | `False` |    n/a  |  n/a |
 | [rs_debug](defaults/main.yml#L23)   | bool   | `False` |    n/a  |  n/a |
-| [rs_event_save](defaults/main.yml#L24)   | str   | `{{ rs_debug | default(false) }}` |    n/a  |  n/a |
-| [rs_event_dump_file](defaults/main.yml#L25)   | str   | `{{ playbook_dir }}/event.json` |    n/a  |  n/a |
+| [rs_event_save](defaults/main.yml#L24)   | str   | `{{ rs_debug ¦ default(false) }}` |    n/a  |  n/a |
+| [rs_event_dump_file](defaults/main.yml#L25)   | str   | `{{ playbook_dir }}/output/actual-event.json` |    n/a  |  n/a |
 | [rs_collectors_supported](defaults/main.yml#L28)   | list   | `['splunk']` |    n/a  |  n/a |
-
-
-
-
 
 ### Tasks
 
-
-#### File: tasks/validate-file.yml
+#### File: `tasks/validate-file.yml`
 
 | Name | Module | Has Conditions |
 | ---- | ------ | --------- |
 | Gathering file stats for {{ rs_file_path }} | ansible.builtin.stat | False |
 | Validating file requirements for {{ rs_file_path }} | ansible.builtin.assert | False |
 
-#### File: tasks/main.yml
+#### File: `tasks/main.yml`
 
 | Name | Module | Has Conditions |
 | ---- | ------ | --------- |
@@ -145,7 +107,7 @@ The data is usually prepared by 3 other roles in this collection:
 | Ensure presence and readability of combined event file | ansible.builtin.include_tasks | False |
 | Send data to collector {{ rs_collector }} | ansible.builtin.include_tasks | False |
 
-#### File: tasks/collectors/splunk.yml
+#### File: `tasks/collectors/splunk.yml`
 
 | Name | Module | Has Conditions |
 | ---- | ------ | --------- |
@@ -155,15 +117,13 @@ The data is usually prepared by 3 other roles in this collection:
 | Update rs_collector_auth_headers with rs_collector_target for {{ rs_collector }} | ansible.builtin.set_fact | True |
 | Override source in event payload if specified | ansible.builtin.set_fact | True |
 | Save event to file for debugging | ansible.builtin.copy | True |
+| Print rs_event_payload for debugging | ansible.builtin.debug | False |
 | Send data to {{ rs_collector }} | ansible.builtin.uri | True |
 | Verify status code is good | ansible.builtin.assert | True |
 
-
 ## Task Flow Graphs
 
-
-
-### Graph for validate-file.yml
+### Graph for `validate-file.yml`
 
 ```mermaid
 flowchart TD
@@ -182,8 +142,7 @@ classDef rescue stroke:#665352,stroke-width:2px;
   Validating_file_requirements_for_rs_file_path1-->End
 ```
 
-
-### Graph for main.yml
+### Graph for `main.yml`
 
 ```mermaid
 flowchart TD
@@ -203,8 +162,7 @@ classDef rescue stroke:#665352,stroke-width:2px;
   collectors____rs_collector____yml2-->End
 ```
 
-
-### Graph for collectors/splunk.yml
+### Graph for `collectors/splunk.yml`
 
 ```mermaid
 flowchart TD
@@ -222,29 +180,27 @@ classDef rescue stroke:#665352,stroke-width:2px;
   Read_combined_event_JSON_file0-->|Task| Parse_combined_event_JSON1[parse combined event json]:::task
   Parse_combined_event_JSON1-->|Task| Update_rs_collector_auth_headers_with_rs_collector_auth_token_for_rs_collector2[update rs collector auth headers with rs collector<br>auth token for rs collector<br>When: **rs collector auth token   default       length   0**]:::task
   Update_rs_collector_auth_headers_with_rs_collector_auth_token_for_rs_collector2-->|Task| Update_rs_collector_auth_headers_with_rs_collector_target_for_rs_collector3[update rs collector auth headers with rs collector<br>target for rs collector<br>When: **rs collector target   length   0**]:::task
-  Update_rs_collector_auth_headers_with_rs_collector_target_for_rs_collector3-->|Task| Override_source_in_event_payload_if_specified4[override source in event payload if specified<br>When: **rs collector source   length   0**]:::task
+  Update_rs_collector_auth_headers_with_rs_collector_target_for_rs_collector3-->|Task| Override_source_in_event_payload_if_specified4[override source in event payload if specified<br>When: **rs collector source   default       length   0**]:::task
   Override_source_in_event_payload_if_specified4-->|Task| Save_event_to_file_for_debugging5[save event to file for debugging<br>When: **rs event save   default false  and rs event dump<br>file   default       length   0**]:::task
-  Save_event_to_file_for_debugging5-->|Task| Send_data_to_rs_collector6[send data to rs collector<br>When: **rs do send   default false**]:::task
-  Send_data_to_rs_collector6-->|Task| Verify_status_code_is_good7[verify status code is good<br>When: **rs do send   default false**]:::task
-  Verify_status_code_is_good7-->End
+  Save_event_to_file_for_debugging5-->|Task| Print_rs_event_payload_for_debugging6[print rs event payload for debugging]:::task
+  Print_rs_event_payload_for_debugging6-->|Task| Send_data_to_rs_collector7[send data to rs collector<br>When: **rs do send   default false**]:::task
+  Send_data_to_rs_collector7-->|Task| Verify_status_code_is_good8[verify status code is good<br>When: **rs do send   default false**]:::task
+  Verify_status_code_is_good8-->End
 ```
 
-
-
-
-
 ## Author Information
+
 Red Hat CI
 
-#### License
+### License
 
 Apache-2.0
 
-#### Minimum Ansible Version
+### Minimum Ansible Version
 
 2.14
 
-#### Platforms
+### Platforms
 
 - **EL**: ['8', '9']
 - **Fedora**: ['37', '38', '39']
