@@ -4,16 +4,16 @@
 #
 #    pip-compile --output-file=requirements-container.txt --strip-extras requirements-container.in
 #
-ansible==11.8.0
+ansible==11.9.0
     # via -r requirements-container.in
 ansible-compat==25.6.0
     # via ansible-lint
-ansible-core==2.18.7
+ansible-core==2.18.8
     # via
     #   ansible
     #   ansible-compat
     #   ansible-lint
-ansible-lint==25.6.1
+ansible-lint==25.7.0
     # via -r requirements-container.in
 attrs==25.3.0
     # via
@@ -25,17 +25,17 @@ black==25.1.0
     # via ansible-lint
 bracex==2.6
     # via wcmatch
-certifi==2025.7.14
+certifi==2025.8.3
     # via requests
 cffi==1.17.1
     # via
     #   cryptography
     #   pynacl
-charset-normalizer==3.4.2
+charset-normalizer==3.4.3
     # via requests
 click==8.2.1
     # via black
-cryptography==45.0.5
+cryptography==45.0.6
     # via
     #   ansible-core
     #   paramiko
@@ -47,9 +47,11 @@ idna==3.10
     # via requests
 importlib-metadata==8.7.0
     # via ansible-lint
+invoke==2.2.0
+    # via paramiko
 jinja2==3.1.6
     # via ansible-core
-jira==3.8.0
+jira==3.10.5
     # via -r requirements-container.in
 jmespath==1.0.1
     # via -r requirements-container.in
@@ -62,7 +64,9 @@ jsonschema-specifications==2025.4.1
 junitparser==4.0.2
     # via -r requirements-container.in
 lxml==6.0.0
-    # via ncclient
+    # via
+    #   -r requirements-container.in
+    #   ncclient
 markupsafe==3.0.2
     # via jinja2
 mypy-extensions==1.1.0
@@ -80,7 +84,7 @@ packaging==25.0
     #   ansible-lint
     #   black
     #   jira
-paramiko==3.5.1
+paramiko==4.0.0
     # via
     #   -r requirements-container.in
     #   ncclient
@@ -89,8 +93,6 @@ pathspec==0.12.1
     #   ansible-lint
     #   black
     #   yamllint
-pillow==11.3.0
-    # via jira
 platformdirs==4.3.8
     # via black
 pycparser==2.22
@@ -120,7 +122,7 @@ requests-toolbelt==1.0.0
     # via jira
 resolvelib==1.0.1
     # via ansible-core
-rpds-py==0.26.0
+rpds-py==0.27.0
     # via
     #   jsonschema
     #   referencing
