@@ -10,9 +10,9 @@ argument_specs:
       It handles authentication, data validation, and transmission.
       Input should be a JSON file with the event already formatted for the target collector.
       The data is usually prepared by 3 other roles in this collection:
-        1. `redhatci.ocp.junit2json` - converts JUnit XMLs to single test report JSON file
-        2. `redhatci.ocp.report_metadata_gen` - merges metadata from environment and a metadata file if available
-        3. `redhatci.ocp.report_combine` - combines 1 + 2 into a single JSON event file
+        1. `junit2json` - converts JUnit XMLs to single test report JSON file
+        2. `report_metadata_gen` - merges metadata from environment and a metadata file if available
+        3. `report_combine` - combines 1 + 2 into a single JSON event file
 
     options:
       rs_combined_event_path:
