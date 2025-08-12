@@ -60,6 +60,7 @@ RUN dnf -y update && \
         python3.11-setuptools \
         python3.11-wheel \
         sshpass \
+        bash \
         tar \
     && \
     dnf clean all
