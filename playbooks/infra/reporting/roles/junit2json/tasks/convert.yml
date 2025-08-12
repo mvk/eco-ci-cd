@@ -19,7 +19,7 @@
   ansible.builtin.set_fact:
     junit2_output_report_path: "{{ junit2_output_dir }}/{{ junit2_json_report_path }}"
 
-- name: Update output variable global_json_reports_list
+- name: Update output variable junit2_json_reports_list
   ansible.builtin.set_fact:
     junit2_json_reports_list: "{{ junit2_json_reports_list + [junit2_output_report_path] }}"
 
@@ -31,7 +31,7 @@
   loop_control:
     loop_var: folder_path
 
-- name: Write the json data to file
+- name: Write the json object to file
   ansible.builtin.copy:
     content: "{{ junit2_result_data | junit2obj | to_nice_json(indent=2) }}"
     dest: "{{ junit2_output_report_path }}"
