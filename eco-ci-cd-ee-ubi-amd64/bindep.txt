@@ -1,0 +1,73 @@
+git-core [platform:centos9]
+python3.11-devel [platform:centos9 compile]
+libcurl-devel [platform:centos9 compile]
+krb5-devel [platform:centos9 compile]
+krb5-workstation [platform:centos9]
+subversion [platform:centos9]
+subversion [platform:dpkg]
+git-lfs [platform:centos9]
+sshpass [platform:centos9]
+rsync [platform:centos9]
+epel-release [platform:centos9]
+unzip [platform:centos9]
+podman-remote [platform:centos9]
+cmake [platform:centos9 compile]
+gcc [platform:centos9 compile]
+gcc-c++ [platform:centos9 compile]
+make [platform:centos9 compile]
+openssl-devel [platform:centos9 compile]
+
+# For the community.libvirt collection
+libvirt-devel [platform:centos9]
+
+# Additional packages typically present in AWX EE but missing in UBI9
+openssh-clients [platform:centos9]
+wget [platform:centos9]
+curl [platform:centos9]
+tar [platform:centos9]
+gzip [platform:centos9]
+bzip2 [platform:centos9]
+xz [platform:centos9]
+which [platform:centos9]
+procps-ng [platform:centos9]
+findutils [platform:centos9]
+diffutils [platform:centos9]
+patch [platform:centos9]
+sudo [platform:centos9]
+less [platform:centos9]
+vim-minimal [platform:centos9]
+
+# Network and security tools
+iputils [platform:centos9]
+bind-utils [platform:centos9]
+telnet [platform:centos9]
+nc [platform:centos9]
+ca-certificates [platform:centos9]
+
+# Development and build tools
+pkgconfig [platform:centos9 compile]
+libtool [platform:centos9 compile]
+autoconf [platform:centos9 compile]
+automake [platform:centos9 compile]
+redhat-rpm-config [platform:centos9 compile]
+
+# Python development dependencies
+python3.11-pip [platform:centos9]
+python3.11-setuptools [platform:centos9]
+python3.11-wheel [platform:centos9]
+python3.11-devel [platform:centos9]
+
+# Additional libraries commonly needed by Ansible collections
+libffi-devel [platform:centos9 compile]
+libyaml-devel [platform:centos9 compile]
+libxml2-devel [platform:centos9 compile]
+libxslt-devel [platform:centos9 compile]
+zlib-devel [platform:centos9 compile]
+
+# For container/kubernetes collections
+skopeo [platform:centos9]
+buildah [platform:centos9]
+
+# For network automation
+iproute [platform:centos9]
+iptables [platform:centos9]
