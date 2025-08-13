@@ -1,8 +1,23 @@
 ---
-skip_list:
-  - var-naming[no-role-prefix]
+
+rulesdir:
+  - hack/rules
+
+use_default_rules: true
+
+display_relative_path: true
+
+verbosity: 1
 
 # Define paths or files to ignore
 exclude_paths:
-  - "tests/dast"
-  - "*collections*"
+  - .github
+  - plugins
+  - hack
+  - tests/dast
+  - roles/**/molecule
+  - "**/*collections*/**"
+  - vars
+
+skip_list:
+  - var-naming[no-role-prefix]
