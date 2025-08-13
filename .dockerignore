@@ -1,8 +1,22 @@
-.ansible
-.vscode
-.gitignore
+## files:
+*.key
+*.log
 *.md
-.idea
-*__pycache__*
-tests
-.github
+.dir-locals.el
+.gitignore
+.projectile
+## folders:
+./vars/
+.ansible/
+.cursor/
+.github/
+.idea/
+.pytest_cache/
+.venv/
+.vscode/
+__pycache__/
+artifacts/
+collections/
+eco-ci-cd-*/
+playbooks/cnf/reporting
+playbooks/infra/reporting/vars/
