@@ -7,4 +7,3 @@
     - name: Convert JUnit XML to JSON
       ansible.builtin.include_role:
         name: junit2json
-
