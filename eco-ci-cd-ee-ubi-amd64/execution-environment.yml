@@ -1,0 +1,128 @@
+---
+version: 3
+
+images:
+  # Specify the base container image to build upon.
+  base_image:
+    name: "registry.access.redhat.com/ubi9/ubi:latest"
+    type: "podman"
+
+dependencies:
+  # List system-level dependencies required by your collections.
+  python_interpreter:
+    package_system: python3.11
+    python_path: /usr/bin/python3.11
+  ansible_core:
+    package_pip: ansible-core>=2.18.0
+  ansible_runner:
+    package_pip: ansible-runner
+  # OS packages:
+  system: bindep.txt
+  # List Python dependencies required by your collections:
+  python: requirements-ee.txt
+  # List Ansible collections to install from Galaxy or other sources.
+  galaxy: requirements-ee.yml
+  # List of system packages (from bindep) to ignore
+  exclude:
+    system:
+      # OpenShift client is installed in the append_base stage (STEP)
+      - openshift-clients
+      # Skip this problem package - use python3-devel instead
+      - python3.11-devel  # Skip this problem package
+
+options:
+  package_manager_path: /usr/bin/dnf
+  # skip_ansible_check: true
+
+additional_build_steps:
+  prepend_base:
+    # Automatic build arguments - these will be populated by podman
+    - ARG TARGETPLATFORM
+    - ARG TARGETARCH
+    - ARG TARGETOS
+    # Dynamic build arguments - these will be populated from Makefile
+    - ARG GIT_WEB_URL
+    - ARG GIT_COMMIT_HASH
+    - ARG GIT_TAG
+    - ARG IMAGE_VENDOR="Red Hat Inc."
+    - ARG IMAGE_MAINTAINER="Telcov10n CI/CD Team"
+    - ARG IMAGE_LICENSE="GPL-3.0"
+    - ARG BUILD_DATE
+    - ARG OC_MIRROR_URL
+    - ARG OC_RELEASE
+    - ARG OC_VERSION
+    - ARG OC_ROOT_URL="${OC_MIRROR_URL}/openshift-v${OC_RELEASE}/clients/ocp/${OC_VERSION}"
+    - ARG OC_PACKAGE="openshift-client-${TARGETOS}-${TARGETARCH}-rhel9-${OC_VERSION}.tar.gz"
+    - ARG CHECKSUM="sha256sum"
+    # Configurable environment variables
+    # based on ARGs for the ability to override them by the caller (the Makefile)
+    - ARG ANSIBLE_HOST_KEY_CHECKING=False
+    - ARG ANSIBLE_STDOUT_CALLBACK=yaml
+    - ARG ANSIBLE_COLLECTIONS_PATH=/usr/share/ansible/collections
+    - ARG ANSIBLE_ROLES_PATH=/usr/share/ansible/roles
+    - ARG PYTHONUNBUFFERED=1
+    - ARG PYTHONDONTWRITEBYTECODE=1
+
+    # Set environment variables from ARGs
+    - ENV ANSIBLE_HOST_KEY_CHECKING="${ANSIBLE_HOST_KEY_CHECKING}"
+    - ENV ANSIBLE_STDOUT_CALLBACK="${ANSIBLE_STDOUT_CALLBACK}"
+    - ENV ANSIBLE_COLLECTIONS_PATH="${ANSIBLE_COLLECTIONS_PATH}"
+    - ENV ANSIBLE_ROLES_PATH="${ANSIBLE_ROLES_PATH}"
+    - ENV PYTHONUNBUFFERED="${PYTHONUNBUFFERED}"
+    - ENV PYTHONDONTWRITEBYTECODE="${PYTHONDONTWRITEBYTECODE}"
+
+    # Essential labels for security/compliance and operational workflows
+    - |
+      LABEL org.opencontainers.image.created="${BUILD_DATE}" \
+        org.opencontainers.image.authors="${IMAGE_MAINTAINER}" \
+        org.opencontainers.image.vendor="${IMAGE_VENDOR}" \
+        org.opencontainers.image.licenses="${IMAGE_LICENSE}" \
+        org.opencontainers.image.source="${GIT_WEB_URL}.git" \
+        org.opencontainers.image.revision="${GIT_COMMIT_HASH}" \
+        org.opencontainers.image.version="${GIT_TAG}"
+
+  append_base:
+    # Update system and install required packages
+    - |
+      RUN dnf -y update && \
+          dnf -y install \
+              --setopt=install_weak_deps=False \
+              --setopt=tsdocs=False \
+              git \
+              gzip \
+              krb5-devel \
+              krb5-libs \
+              openssh-clients \
+              python3.11 \
+              python3.11-pip \
+              python3.11-setuptools \
+              python3.11-wheel \
+              python3.11-devel \
+              sshpass \
+              tar
+    # Download, extract, and clean up the OpenShift client binary (oc)
+    - RUN if ! curl -LO -f "${OC_ROOT_URL}/${OC_PACKAGE}"; then rc=$?; echo "Failed to download ${OC_ROOT_URL}/${OC_PACKAGE} rc=${rc}"; exit "${rc}"; fi
+    - RUN if ! curl -LO -f "${OC_ROOT_URL}/${CHECKSUM}.txt"; then rc=$?; echo "Failed to download ${OC_ROOT_URL}/${CHECKSUM}.txt rc=${rc}"; exit "${rc}"; fi
+    - RUN if ! grep "${OC_PACKAGE}" "${CHECKSUM}.txt" | "${CHECKSUM}" -c -; then rc=$?; echo "Failed ${CHECKSUM} on ${OC_PACKAGE} rc=${rc}"; exit "${rc}"; fi
+    - |
+      RUN tar -zxvf "${OC_PACKAGE}" && \
+        mv oc /usr/local/bin/oc && \
+        mv kubectl /usr/local/bin/kubectl && \
+        rm "${OC_PACKAGE}" README.md "${CHECKSUM}.txt"
+    # Create directories and set permissions like AWX EE
+    - RUN mkdir -p /usr/share/ansible/collections /usr/share/ansible/roles
+    - RUN mkdir -p /tmp /runner
+    - RUN chmod -R g+rwx /tmp /runner /usr/share/ansible
+    # Clean up the system (preserve Python and essential development headers)
+    - RUN dnf clean all
+    # - |
+    #   RUN find /usr /opt /var -name "*.h" -delete 2>/dev/null || true && \
+    #       find /usr /opt /var -name "*.c" -delete 2>/dev/null || true && \
+    #       find /usr/share/man -type f -delete 2>/dev/null || true && \
+    #       find /usr/share/doc -type f -delete 2>/dev/null || true && \
+    #       find /usr/include -name "*.h" -not -path "*/python*" -not -path "*/krb5*" -not -path "*/openssl*" -not -path "*/libffi*" -delete 2>/dev/null || true && \
+    #       find /usr /opt /var -name "*.c" -not -path "*/python*" -delete 2>/dev/null || true && \
+    #       rm -rf /var/cache/yum/* 2>/dev/null || true
+    # Copy the code
+    - COPY . /eco-ci-cd/
+    - WORKDIR /eco-ci-cd
