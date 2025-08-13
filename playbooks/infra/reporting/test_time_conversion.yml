@@ -1,0 +1,21 @@
+---
+- name: Test time conversion from datetime to unix timestamp
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  tasks:
+    - name: Convert JUnit XML to JSON
+      ansible.builtin.include_role:
+        name: junit2json
+
+    - name: Generate metadata
+      ansible.builtin.include_role:
+        name: report_metadata_gen
+
+    - name: Combine test data and metadata
+      ansible.builtin.include_role:
+        name: report_combine
+
+    - name: Send to Splunk (save only for testing)
+      ansible.builtin.include_role:
+        name: report_send
