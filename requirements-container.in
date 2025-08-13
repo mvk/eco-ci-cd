@@ -1,0 +1,10 @@
+ansible
+ansible-lint
+jira
+jmespath
+junitparser
+lxml
+ncclient
+netaddr
+paramiko
+requests
