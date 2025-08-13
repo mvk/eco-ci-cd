@@ -1,0 +1,55 @@
+# vars.mk.example - Copy to vars.mk and customize as needed
+# This file shows all available variable overrides
+
+# Image configuration
+IMAGE_REGISTRY = quay.io/myorg
+IMAGE_VENDOR = "My Organization Inc."
+IMAGE_MAINTAINER = "My CI/CD Team"
+IMAGE_LICENSE = "Apache-2.0"
+
+# Build configuration
+SCRIPT_DEBUG = 1
+RESET_VENV = 1
+VENV_DIR = .my-venv
+
+# Git configuration (override auto-detection)
+GIT_TAG = my-custom-tag
+
+# Execution Environment configuration
+EE_DIR = my-custom-ee-dir
+EE_NAME = my-custom-ee
+EE_BUILD_PLATFORM = linux/mips64
+
+# Python requirements
+PY_REQS_BASE_PREFIX = requirements-custom
+
+# OpenShift Client version:
+OC_MIRROR_URL = https://mirror.openshift.com/pub
+OC_RELEASE = 4
+OC_VERSION = 4.16.44    # may depend on the requirements
+# Podman configuration
+PODMAN_PARAMS = --log-level debug # for debug mode
+PODMAN_BUILD_PARAMS = --platform=linux/arm64 --no-cache --progress=plain
+PODMAN_TAG_PARAMS = --force
+PODMAN_PUSH_PARAMS = --compression-format=zstd
+
+# Build args file location
+BUILD_ARGS_FILE = my-custom-build-args.txt
+
+# Ansible Environment Variables (configurable via build args)
+# These become ENV variables in the container
+# ANSIBLE_HOST_KEY_CHECKING = True
+# ANSIBLE_STDOUT_CALLBACK = debug
+# ANSIBLE_COLLECTIONS_PATH = /custom/collections
+# ANSIBLE_ROLES_PATH = /custom/roles
+
+# Python Environment Variables (configurable via build args)
+# These become ENV variables in the container
+# PYTHONUNBUFFERED = 0
+# PYTHONDONTWRITEBYTECODE = 0
+
+# Additional build configuration
+# CHECKSUM = sha256sum  # Checksum utility for different platforms
+
+# CNF Reporting configuration (if needed)
+# Add any cnf-reporting-* specific overrides here
