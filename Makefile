@@ -7,6 +7,8 @@
 # Load user overrides first
 -include vars.mk
 
+DRY_RUN                     ?= 0
+
 # Core configuration
 RECREATE                    ?= 0
 SCRIPT_DEBUG                ?= 0
@@ -35,10 +37,13 @@ IMAGE_TAG                   ?= $(GIT_TAG)
 
 # Podman configuration
 PODMAN_PARAMS               ?=
-PODMAN_BUILD_PARAMS         ?= "--platform=linux/amd64"
+PODMAN_BUILD_PARAMS         ?= "--platform" "linux/amd64"
 PODMAN_TAG_PARAMS           ?=
 PODMAN_PUSH_PARAMS          ?=
 BUILD_ARGS_FILE             ?= podman-build-args.current.txt
+USE_OC                      ?= 1
+USE_KUBECTL                 ?= 0
+STRIP_BINARIES              ?= 1
 
 # Execution Environment configuration
 EE_NAME                     ?= $(IMAGE_NAME)-ee
@@ -119,6 +124,9 @@ BUILD_DATE=$(BUILD_DATE)
 OC_VERSION=$(OC_VERSION)
 OC_RELEASE=$(OC_RELEASE)
 OC_MIRROR_URL=$(OC_MIRROR_URL)
+USE_OC=$(USE_OC)
+USE_KUBECTL=$(USE_KUBECTL)
+STRIP_BINARIES=$(STRIP_BINARIES)
 endef
 
 # EE-specific environment variables template
@@ -143,15 +151,22 @@ endef
 # Generic command execution with logging and error handling
 # Usage: $(call run_cmd,command_description,cmd_array_var)
 define run_cmd
-	@echo "$(ICON_INFO) $(1)"
-	@if [[ $(SCRIPT_DEBUG) -gt 0 ]]; then \
-		echo "Running: $${$(2)[*]}"; \
+	echo "$(ICON_INFO) $(1)"
+	@if [[ $(SCRIPT_DEBUG) -gt 0 ]]; then
+		echo "Running command: $${$(2)[*]}"
 	fi
-	@"$${$(2)[@]}" || { \
-		echo "$(ICON_FAILED) $(1) failed"; \
-		exit 1; \
-	}
-	@echo "$(ICON_SUCCESS) $(1) completed"
+	@if [[ $(DRY_RUN) -eq 0 ]]; then
+		@if ! "$${$(2)[@]}"; then
+			echo "$(ICON_FAILED) $(1) failed"
+			exit 1
+		fi
+		echo "$(ICON_SUCCESS) $(1) completed"
+	else
+		echo "$(ICON_INFO) $(1) completed (DRY_RUN=$(DRY_RUN))"
+		@if [[ $(SCRIPT_DEBUG) -eq 0 ]]; then
+			echo "$(ICON_WARNING) If you want to see the command that would have been run, set SCRIPT_DEBUG=1"
+		fi
+	fi
 endef
 
 # Virtual environment activation helper
@@ -164,9 +179,9 @@ endef
 # File existence check helper
 # Usage: $(call require_file,filepath,error_message)
 define require_file
-	@if [[ ! -f "$(1)" ]]; then \
-		echo "$(ICON_FAILED) $(2)"; \
-		exit 1; \
+	@if [[ ! -f "$(1)" ]]; then
+		echo "$(ICON_FAILED) $(2)"
+		exit 1
 	fi
 endef
 
@@ -193,8 +208,8 @@ define image_build
 	$(eval image_tag := $(if $(2),$(2),$(GIT_COMMIT_HASH)))
 	$(eval build_args_file := $(if $(3),$(3),$(BUILD_ARGS_FILE)))
 
-	@echo "$(ICON_INFO) Building image: $(image_name):$(image_tag)"
-	@echo "$(ICON_INFO) Using build-args file: $(build_args_file)"
+	echo "$(ICON_INFO) Building image: $(image_name):$(image_tag)"
+	echo "$(ICON_INFO) Using build-args file: $(build_args_file)"
 	@CMD=(podman $(PODMAN_PARAMS) build $(PODMAN_BUILD_PARAMS) "--build-arg-file=$(build_args_file)" "--tag" "$(image_name):$(image_tag)" "--file" "Containerfile" ".")
 	$(call run_cmd,Building $(image_name):$(image_tag),CMD)
 endef
@@ -214,7 +229,7 @@ endef
 # Python requirements update using pip-tools
 # Usage: $(call python_requirements_update,context_name,requirements_list)
 define python_requirements_update
-	@echo "$(ICON_INFO) Running python requirements update on $(1)"
+	echo "$(ICON_INFO) Running python requirements update on $(1)"
 	$(call with_venv,true)
 	$(eval reqs_to_update := $(call split_by_comma,$(2)))
 	@if [ -z "$(reqs_to_update)" ]; then \
