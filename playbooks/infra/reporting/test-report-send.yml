@@ -8,4 +8,4 @@
         msg: "Do some pre-test activities"
 
 - name: Import main report send playbook
-  import_playbook: report_send.yml
+  import_playbook: report-send.yml
