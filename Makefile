@@ -68,7 +68,7 @@ TEST_PLAYBOOK               ?= test_$(RUN_PLAYBOOK)
 INVENTORY                   ?= localhost -c local
 TARGET_DIR                  ?= playbooks
 CLEANUP_LIST                ?= *.log .venv .ansible .pytest_cache __pycache__
-CLEANUP_DIRS                ?= collections/ansible_collections/*
+CLEANUP_DIRS                ?= collections/ansible_collections
 
 # OpenShift Client configuration
 OC_RELEASE                  ?= 4
@@ -558,17 +558,23 @@ ansible-nav-interactive:
 
 clean:
 	@echo "$(ICON_CLEAN) Cleaning test artifacts..."
-	@if [ -n "$(TARGET_DIR)" ]; then \
-		rm -rf "$(TARGET_DIR)/output"; \
-	else \
-		echo "$(ICON_WARNING) TARGET_DIR not specified, skipping clean"; \
-		exit 1; \
+	@if [ -n "$(TARGET_DIR)" ]; then
+		rm -rf "$(TARGET_DIR)/output"
+	else
+		echo "$(ICON_WARNING) TARGET_DIR not specified, skipping clean"
+		exit 1
 	fi
-	@if [[ $(RECREATE) -ne 0 ]]; then \
-		echo "$(ICON_CLEAN_DEEP) RECREATE=1: Deep clean mode"; \
-		echo "Also removing directories: $(CLEANUP_LIST)"; \
-		rm -rf $(CLEANUP_LIST); \
+	@if [[ $(RECREATE) -ne 0 ]]; then
+		echo "$(ICON_CLEAN_DEEP) RECREATE=1: Deep clean mode"
+		echo "Also removing directories: $(CLEANUP_LIST)"
+		rm -rf $(CLEANUP_LIST)
 	fi
+	@if [[ $(RECREATE) -ne 0 ]]; then
+		echo "$(ICON_CLEAN_DEEP) Removing directories: $(CLEANUP_DIRS)"
+		for folder in $(CLEANUP_DIRS)/*; do
+			rm -fr "$${folder}"
+		done
+	@fi
 	@echo "$(ICON_SUCCESS) Clean completed"
 
 .PHONY: venv-ensure bootstrap clean test test-verify retest ansible-lint
