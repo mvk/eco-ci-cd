@@ -7,7 +7,10 @@ ARG PY_EXEC=${PY_EXEC:-"python3.11"}
 ARG WORKDIR=${WORKDIR:-"/eco-ci-cd"}
 ARG VENV_DIR=${VENV_DIR:-"${WORKDIR}/.venv"}
 ARG USE_VENV=${USE_VENV:-1}
-ARG OPTS_DNF=${OPTS_DNF:-"--setopt=install_weak_deps=False --setopt=tsdocs=False"}
+# dnf settings
+# ARG OPTS_DNF=${OPTS_DNF:-"--setopt=install_weak_deps=False --setopt=tsdocs=False"}
+# microdnf settings (does not support --setopt=tsdocs=False)
+ARG OPTS_DNF=${OPTS_DNF:-"--setopt=install_weak_deps=0"}
 ARG OPTS_PIP=${OPTS_PIP:-"--prefer-binary --no-cache-dir"}
 ARG OPTS_GALAXY=${OPTS_GALAXY:-"--no-cache --force --pre"}
 ARG DEV_MODE=${DEV_MODE:-0}
@@ -88,7 +91,10 @@ ARG PY_EXEC=${PY_EXEC:-"python3.11"}
 ARG WORKDIR=${WORKDIR:-"/eco-ci-cd"}
 ARG VENV_DIR=${VENV_DIR:-"${WORKDIR}/.venv"}
 ARG USE_VENV=${USE_VENV:-1}
-ARG OPTS_DNF=${OPTS_DNF:-"--setopt=install_weak_deps=False --setopt=tsdocs=False"}
+# dnf settings
+# ARG OPTS_DNF=${OPTS_DNF:-"--setopt=install_weak_deps=False --setopt=tsdocs=False"}
+# microdnf settings (does not support --setopt=tsdocs=False)
+ARG OPTS_DNF=${OPTS_DNF:-"--setopt=install_weak_deps=0"}
 ARG OPTS_PIP=${OPTS_PIP:-"--prefer-binary --no-cache-dir"}
 ARG OPTS_GALAXY=${OPTS_GALAXY:-"--no-cache --force --pre"}
 ARG DEV_MODE=${DEV_MODE:-0}
