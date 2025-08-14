@@ -1,31 +1,85 @@
+# =============================================================================
+# Single-stage build for eco-ci-cd
 FROM registry.access.redhat.com/ubi9/ubi
 
-WORKDIR /eco-ci-cd
+ARG ANSIBLE_COLLECTIONS_PATH=${ANSIBLE_COLLECTIONS_PATH:-"/usr/share/ansible/collections"}
+ARG PY_EXEC=${PY_EXEC:-"python3.11"}
+ARG WORKDIR=${WORKDIR:-"/eco-ci-cd"}
+ARG VENV_DIR=${VENV_DIR:-"${WORKDIR}/.venv"}
+ARG USE_VENV=${USE_VENV:-1}
+ARG OPTS_DNF=${OPTS_DNF:-"--setopt=install_weak_deps=False --setopt=tsdocs=False"}
+ARG OPTS_PIP=${OPTS_PIP:-"--prefer-binary --no-cache-dir"}
+ARG OPTS_GALAXY=${OPTS_GALAXY:-"--no-cache --force --pre"}
+ARG DEV_MODE=${DEV_MODE:-0}
+ARG DEV_DNF_PACKAGES=${DEV_DNF_PACKAGES:-""}
+ARG DEV_PIP_PACKAGES=${DEV_PIP_PACKAGES:-"ansible-lint"}
 
-# Install required packages
-RUN dnf -y install --setopt=install_weak_deps=False --setopt=tsdocs=False \
-    git \
-    sshpass \
-    python3 \
-    python3-pip \
-    && dnf clean all
+# Set up environment variables
+ENV ANSIBLE_COLLECTIONS_PATH="${ANSIBLE_COLLECTIONS_PATH}"
 
-# Install ansible and ansible-lint
-RUN pip3 install --no-cache-dir \
-    ansible \
-    ansible-lint \
-    netaddr \
-    jmespath \
-    paramiko \
-    ncclient \
-    requests \
-    jira \
-    junitparser
+WORKDIR "${WORKDIR}"
+
+# RUN echo "Debugging Args values:" && \
+#     echo "ANSIBLE_COLLECTIONS_PATH=${ANSIBLE_COLLECTIONS_PATH}" && \
+#     echo "PY_EXEC=${PY_EXEC}" && \
+#     echo "WORKDIR=${WORKDIR}" && \
+#     echo "VENV_DIR=${VENV_DIR}" && \
+#     echo "USE_VENV=${USE_VENV}" && \
+#     echo "OPTS_DNF=${OPTS_DNF}" && \
+#     echo "OPTS_PIP=${OPTS_PIP}" && \
+#     echo "OPTS_GALAXY=${OPTS_GALAXY}" && \
+#     echo "DEV_MODE=${DEV_MODE}" && \
+#     echo "DEV_DNF_PACKAGES=${DEV_DNF_PACKAGES}" && \
+#     echo "DEV_PIP_PACKAGES=${DEV_PIP_PACKAGES}"
+
+# Install required packages (including any build dependencies)
+RUN dnf -y install $OPTS_DNF \
+        git \
+        ${PY_EXEC} \
+        ${PY_EXEC}-pip \
+        sshpass && \
+    if [ "${DEV_MODE}" != "0" ]; then \
+        if [ -n "${DEV_DNF_PACKAGES}" ]; then \
+            dnf -y install $OPTS_DNF $DEV_DNF_PACKAGES; \
+        fi; \
+    fi && \
+    dnf clean all
+
+# Install ansible and ansible-lint to a target directory
+RUN (test "${USE_VENV}" -eq 1 && ("${PY_EXEC}" -m venv "${VENV_DIR}" && source "${VENV_DIR}/bin/activate") || true) && \
+    ${PY_EXEC} -m pip install $OPTS_PIP --upgrade pip && \
+    ${PY_EXEC} -m pip install $OPTS_PIP \
+        ansible \
+        jira \
+        jmespath \
+        ncclient \
+        netaddr \
+        paramiko \
+        requests && \
+    if [ "${DEV_MODE}" != "0" ]; then \
+        if [ -n "${DEV_PIP_PACKAGES}" ]; then \
+            ${PY_EXEC} -m pip install $OPTS_PIP $DEV_PIP_PACKAGES; \
+        fi; \
+    fi
 
 # Copy application files to eco-ci-cd folder
 COPY . .
-# Install requirements
-RUN ansible-galaxy collection install -r requirements.yml
 
-# Set entrypoint to bash
-ENTRYPOINT ["/bin/bash"]
+# Install requirements to a specific directory
+RUN (test "${USE_VENV}" -eq 1 && source "${VENV_DIR}/bin/activate" || true) && \
+    mkdir -p "${ANSIBLE_COLLECTIONS_PATH}" && \
+    export ANSIBLE_COLLECTIONS_PATH="${ANSIBLE_COLLECTIONS_PATH}" && \
+    echo "Installing collections" && \
+    ansible-galaxy collection install $OPTS_GALAXY -r requirements.yml
+
+# Create activation script for the virtual environment
+RUN { \
+        echo '#!/usr/bin/env bash'; \
+        (test "${USE_VENV}" -eq 1 && echo "source ${VENV_DIR}/bin/activate" || true); \
+        echo 'exec "${@}"'; \
+    } > "${WORKDIR}/entrypoint.sh" && \
+    chmod +x "${WORKDIR}/entrypoint.sh"
+
+# Set entrypoint to activate venv and run bash by default
+ENTRYPOINT ["/eco-ci-cd/entrypoint.sh"]
+CMD ["/bin/bash"]
