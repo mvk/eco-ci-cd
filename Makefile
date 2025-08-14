@@ -193,11 +193,11 @@ define image_tag
 	$(eval image_dst_name := $(if $(3),$(3),$(1)))
 	$(eval image_dst_tag := $(if $(4),$(4),latest))
 
-	@if [[ "$(image_src_name):$(image_src_tag)" == "$(image_dst_name):$(image_dst_tag)" ]]; then \
-		echo "$(ICON_INFO) Skip: src and dst are identical ($(image_src_name):$(image_src_tag))"; \
-	else \
-		CMD=(podman $(PODMAN_PARAMS) tag $(PODMAN_TAG_PARAMS) "$(image_src_name):$(image_src_tag)" "$(image_dst_name):$(image_dst_tag)"); \
-		$(call run_cmd,Tagging $(image_src_name):$(image_src_tag) → $(image_dst_name):$(image_dst_tag),CMD); \
+	@if [[ "$(image_src_name):$(image_src_tag)" == "$(image_dst_name):$(image_dst_tag)" ]]; then
+		echo "$(ICON_INFO) Skip: src and dst are identical ($(image_src_name):$(image_src_tag))"
+	else
+		CMD=(podman $(PODMAN_PARAMS) tag $(PODMAN_TAG_PARAMS) "$(image_src_name):$(image_src_tag)" "$(image_dst_name):$(image_dst_tag)")
+		$(call run_cmd,Tagging $(image_src_name):$(image_src_tag) → $(image_dst_name):$(image_dst_tag),CMD)
 	fi
 endef
 
@@ -248,49 +248,108 @@ define python_requirements_update
 endef
 
 # Ansible command execution with environment setup
-# Usage: $(call ansible_cmd,command_description,cmd_args)
+# Usage: $(call ansible_cmd,command_description,cmd_array_var)
 define ansible_cmd
 	$(call with_venv,echo "Ansible environment ready")
-	@CMD=($(2))
-	$(call run_cmd,$(1),CMD)
+	$(call run_cmd,$(1),$(2))
 endef
 
 # Test discovery and execution
+# Usage: $(call discover_and_run_tests,target_dir,playbook,component)
 define discover_and_run_tests
-	@echo "$(ICON_INFO) Auto-discovering tests in $(TARGET_DIR)"
+	$(eval target_dir := $(if $(1),$(1),$(TARGET_DIR)))
+	$(eval playbook := $(if $(2),$(2),$(if $(TEST_PLAYBOOK),$(TEST_PLAYBOOK),test_$(RUN_PLAYBOOK))))
+	$(eval component := $(if $(3),$(3),$(if $(COMPONENT),$(COMPONENT),$(CI_TYPE))))
+
+	echo "$(ICON_INFO) Auto-discovering tests in $(target_dir)"
 	$(call with_venv,echo "Test environment ready")
 
-	@if find $(TARGET_DIR) -name "test_*.py" -o -name "*_test.py" | grep -q .; then \
-		echo "$(ICON_FOUND) Found Python tests, running pytest"; \
-		$(call with_venv,pytest -v $(TARGET_DIR)); \
+	if find $(target_dir) -maxdepth 1 -name "$(playbook)" | grep -q .; then
+		echo "$(ICON_FOUND) Found E2E Tests Ansible playbooks"
+		$(MAKE) run-ansible-e2e-test TARGET_DIR=$(target_dir) TEST_PLAYBOOK=$(playbook) COMPONENT=$(component)
 	fi
 
-	@if find $(TARGET_DIR) -maxdepth 1 -name "test_$(RUN_PLAYBOOK)" | grep -q .; then \
-		echo "$(ICON_FOUND) Found Testing Ansible playbooks"; \
-		$(MAKE) run-ansible-e2e-test TARGET_DIR=$(TARGET_DIR) TEST_PLAYBOOK=test_$(RUN_PLAYBOOK) COMPONENT=$(CI_TYPE); \
-	fi
+	for role_dir in $(target_dir)/roles/*; do
+		if find $(role_dir)/tests -name "test_*.py" 2>/dev/null | grep -q .; then 
+			echo "$(ICON_FOUND) Found Python tests, running pytest"
+			$(call with_venv,$(PY_EXEC) -m pytest $(role_dir)/tests)
+		fi
 
-	@if [ -f "$(TARGET_DIR)/tests/test.yml" ]; then \
-		echo "$(ICON_FOUND) Found $(TARGET_DIR)/tests/test.yml, running ansible-playbook"; \
-		$(call ansible_cmd,Running role test,ansible-playbook -i localhost -c local $(TARGET_DIR)/tests/test.yml); \
-	fi
+		if [ -f "$(role_dir)/tests/test.yml" ]; then
+			echo "$(ICON_FOUND) Found role tests under $(role_dir)/tests/test.yml"
+			echo "Running ansible-playbook"
+			$(call ansible_cmd,Running role tests,ansible-playbook -i localhost -c local $(role_dir)/tests/test.yml)
+		fi
+	done
 endef
 
 # Test verification helper
+# Usage: $(call run_test_verification,target_dir,playbook,component)
 define run_test_verification
-	@echo "$(ICON_INFO) Running test verification for COMPONENT=$(1)"
-	@EXPECTED_FILE="$(TARGET_DIR)/fixtures/$(1)/event.json"
-	@ACTUAL_FILE="$(TARGET_DIR)/actual-event.json"
-	@if [ -f "$$EXPECTED_FILE" ] && [ -f "$$ACTUAL_FILE" ]; then \
-		echo "$(ICON_INFO) Verifying $$ACTUAL_FILE against $$EXPECTED_FILE"; \
-		if ! diff --color --unified "$$EXPECTED_FILE" "$$ACTUAL_FILE"; then \
-			echo "$(ICON_FAILED) Test verification failed"; \
-			exit 1; \
-		fi; \
-		echo "$(ICON_SUCCESS) Test verification passed"; \
-	else \
-		echo "$(ICON_WARNING) No verification files found, skipping verification"; \
+	$(eval target_dir := $(if $(1),$(1),$(TARGET_DIR)))
+	$(eval playbook := $(if $(2),$(2),$(if $(PLAYBOOK),$(PLAYBOOK), $(target_dir)/test_$(RUN_PLAYBOOK)))
+	$(eval component := $(if $(3),$(3),$(if $(COMPONENT), $(COMPONENT),$(CI_TYPE)))
+	echo "$(ICON_INFO) Running test verification for COMPONENT=$(component)"
+	$(eval expected := $(target_dir)/fixtures/$(component)/event.json)
+	$(eval actual := $(target_dir)/actual-event.json)
+	if [ ! -f $(expected) ]; then
+		echo "$(ICON_WARNING) No expected file $(expected) found, skipping verification"
+		exit 1
+	fi	
+	if [ ! -f $(actual) ]; then
+		echo "$(ICON_WARNING) No actual file $(actual) found, skipping verification"
+		exit 1
 	fi
+	echo "$(ICON_INFO) Verifying $(actual) against $(expected)"
+	if ! diff --color --unified $(expected) $(actual); then
+		echo "$(ICON_FAILED) Test verification failed for playbook $(playbook)"
+		exit 1
+	fi
+	echo "$(ICON_SUCCESS) Test verification passed for playbook $(playbook)"
+endef
+
+# Run ansible-playbook with standardized parameters
+# Usage: $(call run_ansible_playbook,target_dir,playbook,component)
+define run_ansible_playbook
+	$(eval target_dir := $(if $(1),$(1),$(TARGET_DIR)))
+	$(eval playbook_file := $(if $(2),$(2),$(RUN_PLAYBOOK)))
+	$(eval component := $(if $(3),$(3),$(if $(COMPONENT),$(COMPONENT),default)))
+	
+	$(eval playbook_path := $(target_dir)/$(playbook_file))
+	$(eval extra_vars_file := $(target_dir)/fixtures/$(component)/$(playbook_file))
+	
+	if [ ! -f "$(playbook_path)" ]; then
+		echo "$(ICON_FAILED) Playbook $(playbook_path) not found"
+		exit 1
+	fi
+	
+	EXTRA_VARS_CHAIN=""
+	if [ -f "$(extra_vars_file)" ]; then
+		echo "$(ICON_INFO) Found extra vars file: $(extra_vars_file)"
+		EXTRA_VARS_CHAIN+=" -e @$(extra_vars_file)"
+	fi
+	
+	if [ -f "$(target_dir)/fixtures/$(component)/env.bash" ]; then
+		echo "$(ICON_INFO) Sourcing $(target_dir)/fixtures/$(component)/env.bash"
+		set -a
+		source $(target_dir)/fixtures/$(component)/env.bash
+		set +a
+	fi
+	
+	CMD=(ansible-playbook -i $(INVENTORY) $(playbook_path) $${EXTRA_VARS_CHAIN} $(ANSIBLE_PARAMS))
+	$(call ansible_cmd,Running playbook $(playbook_file),CMD)
+endef
+
+# Run tests for specific component
+# Usage: $(call run_component_tests,target_dir,playbook,component)
+define run_component_tests
+	$(eval target_dir := $(if $(1),$(1),$(TARGET_DIR)))
+	$(eval playbook := $(if $(2),$(2),test_$(RUN_PLAYBOOK)))
+	$(eval component := $(if $(3),$(3),$(if $(COMPONENT),$(COMPONENT),default)))
+	
+	echo "$(ICON_INFO) Running tests for component: $(component)"
+	$(call run_ansible_playbook,$(target_dir),$(playbook),$(component))
+	$(call run_test_verification,$(target_dir),$(playbook),$(component))
 endef
 
 ################################################################################
@@ -361,16 +420,16 @@ python-deps-save: venv-ensure python-deps-update
 
 setup-ansible-deps: venv-ensure
 	@echo "$(ICON_INFO) Installing Ansible collections from $(ANSIBLE_GALAXY_REQS)"
-	@CMD=(ansible-galaxy collection install --force --pre -r $(ANSIBLE_GALAXY_REQS))
-	$(call ansible_cmd,Installing Ansible collections,$${CMD[*]})
+	CMD=(ansible-galaxy collection install --force --pre -r $(ANSIBLE_GALAXY_REQS))
+	$(call ansible_cmd,Installing Ansible collections,CMD)
 
 bootstrap: setup-ansible-deps
 	@echo "$(ICON_SUCCESS) Environment ready"
 
 ansible-lint:
 	@echo "$(ICON_INFO) Running ansible-lint on $(TARGET_DIR)"
-	@CMD=(ansible-lint $(TARGET_DIR) $(ANSIBLE_LINT_PARAMS))
-	$(call ansible_cmd,Running ansible-lint on $(TARGET_DIR),$${CMD[*]})
+	CMD=(ansible-lint $(TARGET_DIR) $(ANSIBLE_LINT_PARAMS))
+	$(call ansible_cmd,Running ansible-lint on $(TARGET_DIR),CMD)
 
 #------------------------------------------------------------------------------
 # Testing Targets
@@ -378,11 +437,11 @@ ansible-lint:
 
 test:
 	@echo "$(ICON_INFO) Running tests in $(TARGET_DIR)"
-	@$(call discover_and_run_tests)
+	@$(call discover_and_run_tests,$(TARGET_DIR),$(if $(TEST_PLAYBOOK),$(TEST_PLAYBOOK),test_$(RUN_PLAYBOOK)),$(if $(COMPONENT),$(COMPONENT),$(CI_TYPE)))
 
 test-verify:
 	@echo "$(ICON_INFO) Verifying test results in $(TARGET_DIR)"
-	@$(call run_test_verification,$(CI_TYPE))
+	@$(call run_test_verification,$(TARGET_DIR),$(if $(TEST_PLAYBOOK),$(TEST_PLAYBOOK),test_$(RUN_PLAYBOOK)),$(if $(COMPONENT),$(COMPONENT),$(CI_TYPE)))
 
 retest:
 	@$(MAKE) clean TARGET_DIR=$(TARGET_DIR)
@@ -391,31 +450,35 @@ retest:
 	@$(MAKE) test-verify TARGET_DIR=$(TARGET_DIR)
 
 run-ansible-e2e-test:
-	@echo "$(ICON_INFO) Running Ansible E2E test for TARGET_DIR=$(TARGET_DIR)"
+	echo "$(ICON_INFO) Running Ansible E2E test for TARGET_DIR=$(TARGET_DIR)"
 	$(call with_venv,echo "Test environment ready")
-	@echo "$(ICON_INFO) Using TEST_PLAYBOOK=$(TEST_PLAYBOOK)"
-
+	$(eval PLAYBOOK := $(if $(PLAYBOOK),$(PLAYBOOK),$(TARGET_DIR)/$(TEST_PLAYBOOK)))
 	$(eval COMPONENTS := $(shell find $(TARGET_DIR)/fixtures -maxdepth 1 -type d -exec basename {} \; 2>/dev/null | grep -v fixtures || echo ""))
 	$(eval COMPONENT := $(if $(COMPONENT),$(COMPONENT),$(word 1,$(COMPONENTS))))
-	@if [ -z "$(COMPONENT)" ]; then \
-		echo "$(ICON_FAILED) No COMPONENT specified and no fixtures found in $(TARGET_DIR)/fixtures/"; \
-		exit 1; \
+	$(eval EXT_VARS_FILE := $(if $(EXT_VARS_FILE),$(EXT_VARS_FILE),$(TARGET_DIR)/fixtures/$(COMPONENT)/$(TEST_PLAYBOOK)))
+	if [ ! -f "$(PLAYBOOK)" ]; then
+		echo "$(ICON_FAILED) PLAYBOOK=$(PLAYBOOK) not found"
+		exit 1
 	fi
-
-	@echo "$(ICON_INFO) Using COMPONENT=$(COMPONENT) (available: $(COMPONENTS))"
-	@if [ -f "$(TARGET_DIR)/fixtures/$(COMPONENT)/env.bash" ]; then \
-		echo "$(ICON_INFO) Sourcing $(TARGET_DIR)/fixtures/$(COMPONENT)/env.bash"; \
-		set -a; source $(TARGET_DIR)/fixtures/$(COMPONENT)/env.bash; set +a; \
+	echo "$(ICON_INFO) Using PLAYBOOK=$(PLAYBOOK)"
+	if [ -z "$(COMPONENT)" ]; then
+		echo "$(ICON_FAILED) No COMPONENT specified and no fixtures found in $(TARGET_DIR)/fixtures/"
+		exit 1
 	fi
-
-	@EXTRA_VARS_CHAIN=""
-	$(eval FIXTURES_VARS := $(TARGET_DIR)/fixtures/$(COMPONENT)/$(TEST_PLAYBOOK))
-	@if [ -f "$(FIXTURES_VARS)" ]; then \
-		echo "$(ICON_INFO) Found fixtures vars: $(FIXTURES_VARS)"; \
-		EXTRA_VARS_CHAIN+=" -e @$(FIXTURES_VARS)"; \
+	echo "$(ICON_INFO) Using COMPONENT=$(COMPONENT) (available: $(COMPONENTS))"
+	if [ -f "$(TARGET_DIR)/fixtures/$(COMPONENT)/env.bash" ]; then
+		echo "$(ICON_INFO) Sourcing $(TARGET_DIR)/fixtures/$(COMPONENT)/env.bash"
+		set -a
+		source $(TARGET_DIR)/fixtures/$(COMPONENT)/env.bash
+		set +a
 	fi
-	@CMD=(ansible-playbook -i $(INVENTORY) $(TARGET_DIR)/$(TEST_PLAYBOOK) $${EXTRA_VARS_CHAIN} $(ANSIBLE_PARAMS))
-	$(call ansible_cmd,Running E2E test playbook,$${CMD[*]})
+	EXTRA_VARS_CHAIN=""
+	if [ -f "$(EXT_VARS_FILE)" ]; then
+		echo "$(ICON_INFO) Found extra vars file: $(EXT_VARS_FILE)"
+		EXTRA_VARS_CHAIN+=" -e @$(EXT_VARS_FILE)"
+	fi
+	CMD=(ansible-playbook -i $(INVENTORY) $(TARGET_DIR)/$(TEST_PLAYBOOK) $${EXTRA_VARS_CHAIN} $(ANSIBLE_PARAMS))
+	$(call ansible_cmd,Running E2E test playbook,CMD)
 
 #------------------------------------------------------------------------------
 # Container Image Targets
