@@ -22,6 +22,6 @@
     # Using arithmetic to simulate bitwise AND since Jinja2 doesn't support & operator
     # https://docs.ansible.com/ansible/latest/collections/ansible/builtin/stat_module.html#return-values
     _rc_file_mode_readable: >-
-      {{ ((_rc_file_stat.stat.mode | int // 256) % 2 == 1) or \
-        ((_rc_file_stat.stat.mode | int // 32) % 2 == 1) or \
+      {{ ((_rc_file_stat.stat.mode | int // 256) % 2 == 1) or
+        ((_rc_file_stat.stat.mode | int // 32) % 2 == 1) or
         ((_rc_file_stat.stat.mode | int // 4) % 2 == 1) }}
