@@ -185,6 +185,33 @@ def _safe_float(value: Optional[str], default: float = 0.0) -> float:
         return default
 
 
+def _safe_str(value: Optional[str], default: str = "") -> float:
+    """Safely convert string to float with default fallback.
+
+    Args:
+        value: String value to convert
+        default: Default value if conversion fails
+
+    Returns:
+        Converted float or default value
+    """
+    if value is None:
+        return default
+    try:
+        return str(value)
+    except (ValueError, TypeError):
+        return default
+
+ATTR2CONVERSION = {
+    "name": (_safe_str, ""),
+    "timestamp": (_safe_str, time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime(0))),
+    "time": (_safe_float, 0.0),
+    "tests": (_safe_int, 0),
+    "failures": (_safe_int, 0),
+    "errors": (_safe_int, 0),
+    "skipped": (_safe_int, 0),
+}
+
 def _collect_failure(testcase_elem: etree.Element) -> Optional[Dict[str, Any]]:
     """Collect failure information from a test case element.
 
@@ -327,16 +354,14 @@ def _process_test_suite(testsuite_elem: etree.Element) -> Dict[str, Any]:
     Returns:
         Dictionary representation of the test suite
     """
-    curr_timestamp = time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime(0))
-    curr_suite = {
-        "name": testsuite_elem.get("name", ""),
-        "time": _safe_float(testsuite_elem.get("time")),
-        "timestamp": testsuite_elem.get("timestamp", curr_timestamp),
-        "tests": _safe_int(testsuite_elem.get("tests")),
-        "failures": _safe_int(testsuite_elem.get("failures")),
-        "errors": _safe_int(testsuite_elem.get("errors")),
-        "skipped": _safe_int(testsuite_elem.get("skipped")),
-    }
+    curr_suite = {}
+    for attr, (converter, _default) in ATTR2CONVERSION.items():
+        if attr in {"name", "timestamp", "time"}:
+            # Read name, timestamp, and time from XML (time includes setup/teardown)
+            curr_suite[attr] = converter(testsuite_elem.get(attr), default=_default)
+            continue
+        # Initialize counters to zero (will be calculated from test cases)
+        curr_suite[attr] = _default
 
     # Process properties - always include properties section
     properties_elem = testsuite_elem.find("properties")
@@ -353,38 +378,19 @@ def _process_test_suite(testsuite_elem: etree.Element) -> Dict[str, Any]:
     for testcase_elem in testsuite_elem.findall("testcase"):
         test_case = _process_test_case(testcase_elem)
         test_cases.append(test_case)
+        status = test_case.get("result", [{}])[0].get("status", "passed")
+        if status == "failure":
+            curr_suite["failures"] += 1
+        elif status in ("error", "panicked"):
+            curr_suite["errors"] += 1
+        elif status == "skipped":
+            curr_suite["skipped"] += 1
+        # Note: suite time is read from XML (includes setup/teardown), not calculated from test cases
+        curr_suite["tests"] += 1
+
     curr_suite["test_cases"] = test_cases
 
     return curr_suite
-
-
-def _calculate_totals_from_suites(
-    test_suites: List[Dict[str, Any]],
-    testsuites_elem: etree.Element
-) -> Dict[str, int]:
-    """Calculate totals from test suites if not provided at top level.
-
-    Args:
-        test_suites: List of processed test suite dictionaries
-        testsuites_elem: XML element for testsuites
-
-    Returns:
-        Dictionary with calculated totals
-    """
-    totals = {}
-
-    if testsuites_elem.get("skipped") is None:
-        totals["skipped"] = sum(suite.get("skipped", 0) for suite in test_suites)
-    if testsuites_elem.get("tests") is None:
-        totals["tests"] = sum(suite.get("tests", 0) for suite in test_suites)
-    if testsuites_elem.get("failures") is None:
-        totals["failures"] = sum(suite.get("failures", 0) for suite in test_suites)
-    if testsuites_elem.get("errors") is None:
-        totals["errors"] = sum(suite.get("errors", 0) for suite in test_suites)
-    if testsuites_elem.get("time") is None:
-        totals["time"] = sum(suite.get("time", 0.0) for suite in test_suites)
-
-    return totals
 
 
 class FilterModule:
@@ -419,48 +425,31 @@ class FilterModule:
             raise ValueError("Input XML cannot be empty")
 
         # Parse XML
-
-        # if isinstance(xml_report_text, str):
-        #     xml_bytes = xml_report_text.encode("utf-8")
-        # else:
-        #     xml_bytes = xml_report_text
         try:
             root = etree.fromstring(junit_report_text.encode('utf-8'))
         except etree.ParseError as exc:
             raise ValueError(f"Invalid XML: {exc}") from exc
 
-        # Handle both <testsuites> and single <testsuite> root elements
-        if root.tag not in ("testsuites", "testsuite"):
-            raise ValueError(f"Unexpected root element: {root.tag}")
+        # Process test suites
+        test_suites = []
+        elements = root.findall("testsuite") if root.tag == "testsuites" else [root]
+        test_suites = [_process_test_suite(testsuite_elem) for testsuite_elem in elements]
 
-        testsuites_elem = root
-        # Build the basic report structure
+        # Build report structure
         report = {
-            "time": _safe_float(testsuites_elem.get("time")),
-            "tests": _safe_int(testsuites_elem.get("tests")),
-            "failures": _safe_int(testsuites_elem.get("failures")),
-            "errors": _safe_int(testsuites_elem.get("errors")),
-            "skipped": _safe_int(testsuites_elem.get("skipped")),
-            "test_suites": [],
+            "test_suites": test_suites,
             "schema_version": __version__,
         }
 
-        # Process test suites
-        test_suites = []
-        if root.tag == "testsuites":
-            # Multiple test suites
-            for testsuite_elem in root.findall("testsuite"):
-                test_suite = _process_test_suite(testsuite_elem)
-                test_suites.append(test_suite)
-        else:
-            # Single test suite
-            test_suite = _process_test_suite(root)
-            test_suites.append(test_suite)
-
-        report["test_suites"] = test_suites
-
-        # Calculate totals from test suites if not provided at top level
-        calculated_totals = _calculate_totals_from_suites(test_suites, testsuites_elem)
-        report.update(calculated_totals)
+        # Use hybrid approach: prefer XML top-level values, fallback to calculated from suites
+        for attr in set(ATTR2CONVERSION.keys()) - {"name", "timestamp"}:
+            converter, _default = ATTR2CONVERSION[attr]
+            xml_value = root.get(attr)
+            if xml_value is None:
+                # Calculate from test suites if not in XML
+                report[attr] = sum(converter(suite.get(attr, None), default=_default) for suite in test_suites)
+                continue
+            # Use value from XML if available
+            report[attr] = converter(xml_value)
 
         return report
