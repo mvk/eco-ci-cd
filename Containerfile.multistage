@@ -46,7 +46,10 @@ RUN dnf -y install $OPTS_DNF \
     dnf clean all
 
 # Install ansible and ansible-lint to a target directory
-RUN (test "${USE_VENV}" -eq 1 && ("${PY_EXEC}" -m venv "${VENV_DIR}" && source "${VENV_DIR}/bin/activate") || true) && \
+RUN if [ "${USE_VENV}" -eq 1 ]; then \
+        "${PY_EXEC}" -m venv "${VENV_DIR}" && \
+        source "${VENV_DIR}/bin/activate"; \
+    fi && \
     ${PY_EXEC} -m pip install $OPTS_PIP --upgrade pip && \
     ${PY_EXEC} -m pip install $OPTS_PIP --upgrade setuptools && \
     ${PY_EXEC} -m pip install $OPTS_PIP \
@@ -67,10 +70,12 @@ RUN (test "${USE_VENV}" -eq 1 && ("${PY_EXEC}" -m venv "${VENV_DIR}" && source "
 COPY . .
 
 # Install requirements to a specific directory
-RUN (test "${USE_VENV}" -eq 1 && source "${VENV_DIR}/bin/activate" || true) && \
-    mkdir -p "${ANSIBLE_COLLECTIONS_PATH}" && \
+RUN mkdir -p "${ANSIBLE_COLLECTIONS_PATH}" && \
     export ANSIBLE_COLLECTIONS_PATH="${ANSIBLE_COLLECTIONS_PATH}" && \
     echo "Installing collections" && \
+    if [ "${USE_VENV}" -eq 1 ]; then \
+        source "${VENV_DIR}/bin/activate"; \
+    fi && \
     ansible-galaxy collection install $OPTS_GALAXY -r requirements.yml
 
 # =============================================================================
