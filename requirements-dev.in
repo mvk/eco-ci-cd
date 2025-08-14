@@ -1,0 +1,3 @@
+ansible-lint
+pytest
+pytest-ansible
