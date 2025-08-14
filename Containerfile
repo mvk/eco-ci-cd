@@ -48,6 +48,7 @@ RUN dnf -y install $OPTS_DNF \
 # Install ansible and ansible-lint to a target directory
 RUN (test "${USE_VENV}" -eq 1 && ("${PY_EXEC}" -m venv "${VENV_DIR}" && source "${VENV_DIR}/bin/activate") || true) && \
     ${PY_EXEC} -m pip install $OPTS_PIP --upgrade pip && \
+    ${PY_EXEC} -m pip install $OPTS_PIP --upgrade setuptools && \
     ${PY_EXEC} -m pip install $OPTS_PIP \
         ansible \
         jira \
