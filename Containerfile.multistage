@@ -32,18 +32,18 @@ WORKDIR "${WORKDIR}"
 #     echo "DEV_DNF_PACKAGES=${DEV_DNF_PACKAGES}" && \
 #     echo "DEV_PIP_PACKAGES=${DEV_PIP_PACKAGES}"
 
-RUN microdnf -y update $OPTS_DNF && \
-    microdnf -y install $OPTS_DNF \
+RUN microdnf -y update $OPTS_DNF
+RUN microdnf -y install $OPTS_DNF \
         git \
         ${PY_EXEC} \
         ${PY_EXEC}-pip \
-        sshpass && \
-    if [ "${DEV_MODE}" != "0" ]; then \
+        sshpass
+RUN if [ "${DEV_MODE}" != "0" ]; then \
         if [ -n "${DEV_DNF_PACKAGES}" ]; then \
             microdnf -y install $OPTS_DNF $DEV_DNF_PACKAGES; \
         fi; \
-    fi && \
-    microdnf clean all
+    fi
+RUN microdnf clean all
 
 # Install ansible and ansible-lint to a target directory
 RUN if [ "${USE_VENV}" -eq 1 ]; then \
@@ -101,18 +101,18 @@ ENV ANSIBLE_COLLECTIONS_PATH="${ANSIBLE_COLLECTIONS_PATH}"
 WORKDIR "${WORKDIR}"
 
 # Install only runtime dependencies
-RUN microdnf -y update $OPTS_DNF && \
-    microdnf -y install $OPTS_DNF \
+RUN microdnf -y update $OPTS_DNF
+RUN microdnf -y install $OPTS_DNF \
         git \
         ${PY_EXEC} \
         ${PY_EXEC}-pip \
-        sshpass && \
-    if [ "${DEV_MODE}" != "0" ]; then \
+        sshpass
+RUN if [ "${DEV_MODE}" != "0" ]; then \
         if [ -n "${DEV_DNF_PACKAGES}" ]; then \
-            dnf -y install $OPTS_DNF $DEV_DNF_PACKAGES; \
+            microdnf -y install $OPTS_DNF $DEV_DNF_PACKAGES; \
         fi; \
-    fi && \
-    dnf clean all
+    fi
+RUN microdnf clean all
 
 # Copy Ansible collections from builder stage
 COPY --from=builder "${ANSIBLE_COLLECTIONS_PATH}" "${ANSIBLE_COLLECTIONS_PATH}"
