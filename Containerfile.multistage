@@ -59,7 +59,6 @@ RUN if [ "${USE_VENV}" -eq 1 ]; then \
     ${PY_EXEC} -m pip install $OPTS_PIP --upgrade pip setuptools && \
     ${PY_EXEC} -m pip install $OPTS_PIP -r ./requirements.txt && \
     if [ "${DEV_MODE}" != "0" ]; then \
-        ${PY_EXEC} -m pip install $OPTS_PIP ./requirements-dev.txt && \ 
         if [ -n "${DEV_PIP_PACKAGES}" ]; then \
             ${PY_EXEC} -m pip install $OPTS_PIP $DEV_PIP_PACKAGES; \
         fi; \
