@@ -10,12 +10,12 @@ ARG USE_VENV=${USE_VENV:-1}
 # dnf settings
 # ARG OPTS_DNF=${OPTS_DNF:-"--setopt=install_weak_deps=False --setopt=tsdocs=False"}
 # microdnf settings (does not support --setopt=tsdocs=False)
-ARG OPTS_DNF=${OPTS_DNF:-"--setopt=install_weak_deps=0"}
+ARG OPTS_DNF=${OPTS_DNF:-" --nodocs --setopt=install_weak_deps=0"}
 ARG OPTS_PIP=${OPTS_PIP:-"--prefer-binary --no-cache-dir"}
 ARG OPTS_GALAXY=${OPTS_GALAXY:-"--no-cache --force --pre"}
 ARG DEV_MODE=${DEV_MODE:-0}
 ARG DEV_DNF_PACKAGES=${DEV_DNF_PACKAGES:-""}
-ARG DEV_PIP_PACKAGES=${DEV_PIP_PACKAGES:-"ansible-lint"}
+ARG DEV_PIP_PACKAGES=${DEV_PIP_PACKAGES:-"requirements-dev.txt"}
 
 # Set up environment variables
 ENV ANSIBLE_COLLECTIONS_PATH="${ANSIBLE_COLLECTIONS_PATH}"
@@ -48,29 +48,22 @@ RUN if [ "${DEV_MODE}" != "0" ]; then \
     fi
 RUN microdnf clean all
 
+# Copy application files to eco-ci-cd folder
+COPY . .
+
 # Install ansible and ansible-lint to a target directory
 RUN if [ "${USE_VENV}" -eq 1 ]; then \
         "${PY_EXEC}" -m venv "${VENV_DIR}" && \
         source "${VENV_DIR}/bin/activate"; \
     fi && \
-    ${PY_EXEC} -m pip install $OPTS_PIP --upgrade pip && \
-    ${PY_EXEC} -m pip install $OPTS_PIP --upgrade setuptools && \
-    ${PY_EXEC} -m pip install $OPTS_PIP \
-        ansible \
-        jira \
-        jmespath \
-        ncclient \
-        netaddr \
-        paramiko \
-        requests && \
+    ${PY_EXEC} -m pip install $OPTS_PIP --upgrade pip setuptools && \
+    ${PY_EXEC} -m pip install $OPTS_PIP -r ./requirements.txt && \
     if [ "${DEV_MODE}" != "0" ]; then \
+        ${PY_EXEC} -m pip install $OPTS_PIP ./requirements-dev.txt && \ 
         if [ -n "${DEV_PIP_PACKAGES}" ]; then \
             ${PY_EXEC} -m pip install $OPTS_PIP $DEV_PIP_PACKAGES; \
         fi; \
     fi
-
-# Copy application files to eco-ci-cd folder
-COPY . .
 
 # Install requirements to a specific directory
 RUN mkdir -p "${ANSIBLE_COLLECTIONS_PATH}" && \
@@ -94,7 +87,7 @@ ARG USE_VENV=${USE_VENV:-1}
 # dnf settings
 # ARG OPTS_DNF=${OPTS_DNF:-"--setopt=install_weak_deps=False --setopt=tsdocs=False"}
 # microdnf settings (does not support --setopt=tsdocs=False)
-ARG OPTS_DNF=${OPTS_DNF:-"--setopt=install_weak_deps=0"}
+ARG OPTS_DNF=${OPTS_DNF:-" --nodocs --setopt=install_weak_deps=0"}
 ARG OPTS_PIP=${OPTS_PIP:-"--prefer-binary --no-cache-dir"}
 ARG OPTS_GALAXY=${OPTS_GALAXY:-"--no-cache --force --pre"}
 ARG DEV_MODE=${DEV_MODE:-0}

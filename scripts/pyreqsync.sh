@@ -16,9 +16,6 @@ if [[ "${BUILD_MODE}" -gt 0 ]]; then
   SRC_LIST+=(requirements-build.in)
 fi
 
-for src_file in "${SRC_LIST[@]}"; do
-  dst_file="${src_file%.*}.txt"
-  # echo "dst_file: '${dst_file}'"
-  pip-compile --color "${src_file}" -o "${dst_file}" &&
-    echo "generated: ${dst_file}"
-done
+dst_file="requirements.txt"
+pip-compile --color "${SRC_LIST[@]}" -o "${dst_file}"
+echo "destination file: ${dst_file}"
