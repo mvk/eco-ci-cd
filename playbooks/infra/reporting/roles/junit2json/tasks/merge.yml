@@ -42,9 +42,9 @@
 - name: Merge multiple JSON report files into single consolidated report
   ansible.builtin.set_fact:
     junit2_result_merged_file: >
-      {{ junit2_json_reports_list | \
-        reportsmerger(strategy='normal', output_file=[junit2_output_dir, junit2_output_merged_report] | \
-        join('/')) }}"
+      {{ junit2_json_reports_list |
+        reportsmerger(strategy='normal', output_file=[junit2_output_dir, junit2_output_merged_report] |
+        join('/')) }}
 
 - name: Debug merged file path
   ansible.builtin.debug:
