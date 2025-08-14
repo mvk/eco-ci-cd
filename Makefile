@@ -151,22 +151,24 @@ endef
 # Generic command execution with logging and error handling
 # Usage: $(call run_cmd,command_description,cmd_array_var)
 define run_cmd
-	echo "$(ICON_INFO) $(1)"
+	$(eval message := $(1))
+	$(eval cmd := $(2))
+	printf '%s %s\n' "$(ICON_INFO)" "$(message)"
 	@if [[ $(SCRIPT_DEBUG) -gt 0 ]]; then
-		echo "Running command: $${$(2)[*]}"
+		echo "Running command: $${$(cmd)[@]}"
 	fi
-	@if [[ $(DRY_RUN) -eq 0 ]]; then
-		@if ! "$${$(2)[@]}"; then
-			echo "$(ICON_FAILED) $(1) failed"
-			exit 1
-		fi
-		echo "$(ICON_SUCCESS) $(1) completed"
-	else
-		echo "$(ICON_INFO) $(1) completed (DRY_RUN=$(DRY_RUN))"
-		@if [[ $(SCRIPT_DEBUG) -eq 0 ]]; then
+	if [ $(DRY_RUN) -gt 0 ]; then
+		printf '%s %s completed (DRY_RUN=%s)\n' "$(ICON_INFO)" "$(message)" "$(DRY_RUN)"
+		if [[ $(SCRIPT_DEBUG) -eq 0 ]]; then
 			echo "$(ICON_WARNING) If you want to see the command that would have been run, set SCRIPT_DEBUG=1"
 		fi
+		exit 0
 	fi
+	if ! "$${$(cmd)[@]}"; then
+		printf '%s %s failed\n' "$(ICON_FAILED)" "$(message)"
+		exit 1
+	fi
+	printf '%s %s completed\n' "$(ICON_SUCCESS)" "$(message)"
 endef
 
 # Virtual environment activation helper
@@ -215,14 +217,14 @@ define image_build
 endef
 
 # Image pushing with tag list support
-# Usage: $(call image_push,image_name,tag_list)
+# Usage: $(call image_push,image_name,tag1,tag2,...)
 define image_push
 	$(eval image_name := $(1))
-	$(eval tag_list := $(if $(2),$(2),$(GIT_COMMIT_HASH)))
+	$(eval tag_list := $(if $(2),$(2) $(3) $(4) $(5),$(GIT_COMMIT_HASH)))
 
-	@for image_tag in $(call split_by_comma,$(tag_list)); do \
-		CMD=(podman $(PODMAN_PARAMS) push $(PODMAN_PUSH_PARAMS) "$(image_name):$${image_tag}"); \
-		$(call run_cmd,Pushing $(image_name):$${image_tag},CMD); \
+	for image_tag in $(tag_list); do
+		CMD=(podman $(PODMAN_PARAMS) push $(PODMAN_PUSH_PARAMS) "$(image_name):$${image_tag}")
+		$(call run_cmd,Pushing $(image_name):$${image_tag},CMD)
 	done
 endef
 
@@ -493,8 +495,8 @@ image-build: image-build-args-file
 	@$(MAKE) image-tag IMAGE_TAG=$${IMAGE_TAG:-latest}
 
 image-push: image-build
-	@IMAGE_TAG=$${IMAGE_TAG:-latest}
-	$(call image_push,$(IMAGE_FULL_NAME),"$(GIT_COMMIT_HASH),$${IMAGE_TAG}")
+	$(eval IMAGE_TAG := $(if $${IMAGE_TAG},$${IMAGE_TAG},latest))
+	$(call image_push,$(IMAGE_FULL_NAME),$(GIT_COMMIT_HASH),$(IMAGE_TAG))
 
 #------------------------------------------------------------------------------
 # Execution Environment Targets
