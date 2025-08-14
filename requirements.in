@@ -1,0 +1,7 @@
+ansible
+jira
+jmespath
+ncclient
+netaddr
+paramiko
+requests
