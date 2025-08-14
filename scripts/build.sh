@@ -3,9 +3,9 @@ SCRIPT_DEBUG="${SCRIPT_DEBUG:-0}"
 extra_args=("${@}")
 multistage="${multistage:-0}"
 registry="${registry:-"quay.io/makovgan"}"
+hash="${hash:-"$(git rev-parse HEAD || true)"}"
 image="${image:-"$(git rev-parse --show-toplevel || true)"}"
 image="${image##*/}"
-hash="$(git rev-parse HEAD || true)"
 containerfile="${containerfile:-"Containerfile"}"
 if [[ "${multistage}" -gt 0 ]]; then
   image="${image}-mb"
@@ -25,13 +25,13 @@ if [[ -n "${tag}" ]]; then
   fi
 fi
 repository="${registry}/${image}"
-if [[ "${SCRIPT_DEBUG}" -gt 0 ]]; then
-  echo "##################################################################################"
-  echo "repository: '${repository}'"
-  echo "containerfile: '${containerfile}'"
-  echo "tags: ${tags[*]}"
-  echo "##################################################################################"
-fi
+# if [[ "${SCRIPT_DEBUG}" -gt 0 ]]; then
+echo "##################################################################################"
+echo "repository: '${repository}'"
+echo "containerfile: '${containerfile}'"
+echo "tags: ${tags[*]}"
+echo "##################################################################################"
+# fi
 source podman.env
 declare -a curr_cmd
 curr_cmd=(podman --log-level debug build "${extra_args[@]}" --no-cache)
