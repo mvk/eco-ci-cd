@@ -1,0 +1,64 @@
+---
+- name: "Test container image build (no push)"
+  hosts: localhost
+  gather_facts: true
+  vars:
+    current_dir: "{{ lookup('env', 'PWD') }}"
+    # Test configuration - build only, no push
+    ci_push: false
+    ci_debug_output: true
+
+    # Use optimized containerfile for testing
+    ci_containerfile: "Containerfile.optimized"
+
+    # Test with custom tags
+    ci_image_tags:
+      - "test"
+      - "{{ ansible_date_time.epoch }}"
+
+    # Test build options for venv
+    ci_podman_build_options:
+      - "--no-cache"
+      - "--platform"
+      - "linux/amd64"
+      - "--build-arg"
+      - "USE_VENV=0"
+
+  roles:
+    - container_image
+
+  post_tasks:
+    - name: "Verify image was built"
+      ansible.builtin.command: >
+        podman images {{ _repository }}:{{ ci_image_tags[1] }} --format "{{ '{{' }}.Repository{{ '}}' }}:{{ '{{' }}.Tag{{ '}}' }} {{ '{{' }}.Size{{ '}}' }}"
+      register: _image_check
+      changed_when: false
+
+    - name: "Display built image info"
+      ansible.builtin.debug:
+        msg: |
+          Built image: {{ _image_check.stdout }}.
+          Image ready for testing!
+    - name: "Test image functionality"
+      ansible.builtin.command: >
+        podman run --rm {{ _repository }}:{{ ci_image_tags[1] }}  ansible --version
+      register: _image_test
+      changed_when: false
+
+    - name: "Clean up the build image"
+      ansible.builtin.command:
+        argv:
+          - podman
+          - image
+          - rm
+          - "{{ _repository }}:{{ ci_image_tags[1] }}"
+      register: _cleanup_result
+      changed_when: false
+      failed_when: _cleanup_result.rc != 0 and "'No such image' not in _cleanup_result.stderr"
+
+    - name: "Display test results"
+      ansible.builtin.debug:
+        msg:
+          - "Image test successful!"
+          - "Ansible version: {{ _image_test.stdout_lines[0] }}"
+        when: _image_test.stdout_lines | length > 0
