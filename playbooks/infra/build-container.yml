@@ -1,0 +1,34 @@
+---
+- name: "Build and push container image"
+  hosts: localhost
+  gather_facts: true
+  vars:
+    # Override defaults as needed
+    # ci_image_name: "custom-name"  # defaults to git repo name
+    # ci_image_tags: ["v1.0", "latest"]  # defaults to [git_hash, "latest"]
+    # ci_containerfile: "Containerfile.prod"  # defaults to "Containerfile"
+    # ci_container_registry: "quay.io/myorg"  # defaults to "quay.io/telcov10n"
+    # ci_podman_build_options: ["--platform", "linux/amd64"]  # build options
+    # ci_env_file: "podman.env"  # optional environment file
+    # ci_build_env: {}  # optional environment variables
+    # ci_push: true  # set to false to skip push
+    ci_debug_output: true
+    current_dir: "{{ lookup('env', 'PWD') }}"
+
+  roles:
+    - container_image
+
+  post_tasks:
+    - name: "Display final image information"
+      ansible.builtin.debug:
+        msg:
+          - "Successfully built and pushed:"
+          - "Repository: {{ _repository }}"
+          - "Tags: {{ _final_tags }}"
+          - "Image references:"
+      loop: "{{ _final_tags }}"
+
+    - name: "Show full image references"
+      ansible.builtin.debug:
+        msg: "{{ _repository }}:{{ item }}"
+      loop: "{{ _final_tags }}"
