@@ -1,0 +1,37 @@
+# X-SPDX-License-Identifier: Apache-2.0
+---
+# Default values for container_image role
+
+# Container registry (server/subdir format)
+ci_container_registry: quay.io/telcov10n
+
+# Containerfile path relative to PWD
+ci_containerfile: Containerfile
+
+# Image name - calculated from git repo root if empty
+ci_image_name: ""
+
+# Image tags to apply
+ci_image_tags: []
+
+# Podman build options
+ci_podman_build_options: []
+
+ci_podman_extra_args: []
+
+# Whether to use build cache
+ci_build_cache: true
+
+ci_podman_arch: amd64
+
+# Optional environment variables for build process
+ci_build_env: {}
+
+# Optional environment file for podman build
+ci_env_file: ""
+
+# Whether to push the image after building (can be overridden with -e ci_push=false)
+ci_push: true
+
+# Debug options
+ci_debug_output: false

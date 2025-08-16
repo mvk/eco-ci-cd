@@ -1,0 +1,15 @@
+# X-SPDX-License-Identifier: Apache-2.0
+---
+# Internal variables for container_image role
+
+# Git-derived variables (calculated at runtime)
+_git_repo_root: "{{ lookup('env', 'PWD') }}"
+_git_current_hash: ""
+_git_current_tag: ""
+
+# Computed image name and repository
+_computed_image_name: "{{ ci_image_name if ci_image_name else (_git_repo_root | basename) }}"
+_repository: "{{ ci_container_registry }}/{{ _computed_image_name }}"
+
+# Final tag list with git hash and tags
+_final_tags: "{{ ci_image_tags }}"
