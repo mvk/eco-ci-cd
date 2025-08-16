@@ -1,0 +1,75 @@
+# X-SPDX-License-Identifier: Apache-2.0
+---
+argument_specs:
+  main:
+    short_description: "Build and push container images using podman"
+    description: |
+      This role builds and pushes container images using Podman.
+      Based on the functionality of the build.sh script.
+      Automatically detects git information for tagging.
+    author: |
+      eco-ci-cd team
+
+    options:
+      ci_container_registry:
+        description: "Container registry in server/subdir format"
+        type: str
+        default: "quay.io/telcov10n"
+
+      ci_containerfile:
+        description: "Path to Containerfile relative to current working directory"
+        type: str
+        default: "Containerfile"
+
+      ci_image_name:
+        description: |
+          Image name for the container.
+          If empty, calculated from git repository root directory name
+        type: str
+        default: ""
+
+      ci_image_tags:
+        description: |
+          List of tags to apply to the container image.
+          Git hash and current git tag are automatically added
+        type: list
+        elements: str
+        default: []
+
+      ci_podman_arch:
+        description: "Podman image architecture"
+        type: str
+        default: amd64
+
+      ci_podman_extra_args:
+        description: "Additional arguments combined from build options"
+        type: list
+        elements: str
+        default: []
+
+      ci_build_cache:
+        description: "Whether to use build cache"
+        type: bool
+        default: true
+
+      ci_build_env:
+        description: "Dictionary of environment variables for the build process"
+        type: dict
+        default: {}
+
+      ci_env_file:
+        description:
+          - "Optional environment file to source before build"
+          - "File should contain export statements"
+        type: str
+        default: ""
+
+      ci_push:
+        description: "Whether to push the image to registry after building"
+        type: bool
+        default: true
+
+      ci_debug_output:
+        description: "Enable debug output showing detailed information"
+        type: bool
+        default: false

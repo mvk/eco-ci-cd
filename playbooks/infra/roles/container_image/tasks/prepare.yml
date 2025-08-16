@@ -1,0 +1,50 @@
+# X-SPDX-License-Identifier: Apache-2.0
+---
+- name: Verify containerfile exists
+  ansible.builtin.stat:
+    path: "{{ current_dir }}/{{ ci_containerfile }}"
+  register: _containerfile_stat
+  failed_when: not _containerfile_stat.stat.exists
+
+- name: Verify env file exists
+  ansible.builtin.stat:
+    path: "{{ current_dir }}/{{ ci_env_file }}"
+  register: _env_file_stat
+  failed_when: not _env_file_stat.stat.exists
+  when:
+    - ci_env_file | default("") | length > 0
+
+- name: Parse environment file content
+  ansible.builtin.set_fact:
+    _env_vars: >-
+      {{
+        lookup('file', current_dir + '/' + ci_env_file).splitlines()
+        | select('match', '^export\s+\w+=.*')
+        | map('regex_replace', '^export\s+', '')
+        | map('regex_replace', '=', '|')
+        | map('split', '|', 1)
+        | items2dict(key_name=0, value_name=1)
+      }}
+  when:
+    - ci_env_file | default("") | length > 0
+
+- name: Print contents of _env_vars
+  ansible.builtin.debug:
+    var: _env_vars
+
+- name: Merge environment variables
+  ansible.builtin.set_fact:
+    _build_environment: "{{ _build_environment | default({}) | combine(item | default({})) }}"
+  loop:
+    - "{{ ci_build_env | default({}) }}"
+    - "{{ _env_vars | default({}) }}"
+
+- name: Debug build preparation
+  ansible.builtin.debug:
+    msg:
+      - "Containerfile: {{ ci_containerfile }}"
+      - "Containerfile exists: {{ _containerfile_stat.stat.exists }}"
+      - "Environment file: {{ ci_env_file if ci_env_file else 'None' }}"
+      - "Build environment: {{ _build_environment }}"
+      - "Podman build options: {{ ci_podman_build_options }}"
+  when: ci_debug_output | bool

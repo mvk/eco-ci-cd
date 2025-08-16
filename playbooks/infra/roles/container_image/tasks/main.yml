@@ -1,0 +1,19 @@
+# X-SPDX-License-Identifier: Apache-2.0
+---
+- name: "Container Image Build and Push"
+  tags:
+    - container
+    - build
+  block:
+    - name: "Gather git information"
+      ansible.builtin.include_tasks: git.yml
+
+    - name: "Prepare build environment"
+      ansible.builtin.include_tasks: prepare.yml
+
+    - name: "Build container image"
+      ansible.builtin.include_tasks: build.yml
+
+    - name: "Push container image"
+      ansible.builtin.include_tasks: push.yml
+      when: ci_push | bool

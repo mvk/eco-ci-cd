@@ -1,0 +1,25 @@
+# X-SPDX-License-Identifier: Apache-2.0
+---
+- name: "Push container images to registry"
+  containers.podman.podman_image:
+    name: "{{ _repository }}"
+    tag: "{{ item }}"
+    push: true
+    push_args:
+      dest: "{{ _repository }}:{{ item }}"
+    state: present
+  loop: "{{ ci_image_tags }}"
+  register: _push_results
+
+- name: "Display push summary"
+  ansible.builtin.debug:
+    msg:
+      - "Pushed image: {{ _repository }}"
+      - "Tags: {{ ci_image_tags }}"
+      - "Push successful: {{ _push_results.results | map(attribute='changed') | list }}"
+
+- name: "Verify images were pushed"
+  ansible.builtin.fail:
+    msg: "Failed to push image with tag {{ item.item }}"
+  loop: "{{ _push_results.results }}"
+  when: item.failed | default(false)

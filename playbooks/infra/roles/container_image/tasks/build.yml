@@ -1,0 +1,46 @@
+# X-SPDX-License-Identifier: Apache-2.0
+---
+- name: "Update podman build options"
+  ansible.builtin.set_fact:
+    ci_podman_extra_args: "{{ ci_podman_extra_args + ci_podman_build_options }}"
+  when:
+    - ci_podman_build_options | default([]) | length > 0
+
+- name: "Debug on vars"
+  ansible.builtin.debug:
+    msg:
+      - "current_dir: {{ current_dir }}"
+      - "ci_containerfile: {{ ci_containerfile }}"
+      - "ci_podman_build_options: {{ ci_podman_build_options }}"
+      - "ci_podman_extra_args: {{ ci_podman_extra_args }}"
+      - "ci_podman_arch: {{ ci_podman_arch }}"
+
+- name: "Build container image"
+  containers.podman.podman_image:
+    name: "{{ _repository }}"
+    tag: "{{ item }}"
+    path: "{{ current_dir }}"
+    arch: "{{ ci_podman_arch }}"
+    build:
+      file: "{{ current_dir }}/{{ ci_containerfile }}"
+      format: oci
+      extra_args: "{{ ci_podman_extra_args | join(' ') }}"
+    state: build
+    force: true
+  environment: "{{ _build_environment | default({}) }}"
+  loop: "{{ ci_image_tags }}"
+  register: _build_results
+
+- name: "Display build summary"
+  ansible.builtin.debug:
+    msg:
+      - "Built image: {{ _repository }}"
+      - "Tags: {{ ci_image_tags }}"
+      - "Build successful: {{ _build_results.results | map(attribute='changed') | list }}"
+  when: ci_debug_output | bool
+
+- name: "Verify images were built"
+  ansible.builtin.fail:
+    msg: "Failed to build image with tag {{ item.item }}"
+  loop: "{{ _build_results.results }}"
+  when: item.failed | default(false)

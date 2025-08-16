@@ -1,0 +1,63 @@
+# X-SPDX-License-Identifier: Apache-2.0
+---
+- name: "Gather git repository information"
+  block:
+    - name: "Get git repository root"
+      ansible.builtin.command: git rev-parse --show-toplevel # noqa: command-instead-of-module
+      register: _git_repo_root_result
+      changed_when: false
+      failed_when: false
+
+    - name: "Get current git hash"
+      ansible.builtin.command: git rev-parse HEAD # noqa: command-instead-of-module
+      register: _git_hash_result
+      changed_when: false
+      failed_when: false
+
+    - name: "Get current git tag if exists"
+      ansible.builtin.command: git tag --points-at=HEAD # noqa: command-instead-of-module
+      register: _git_tag_result
+      changed_when: false
+      failed_when: false
+  rescue:
+    - name: "Handle git command failures"
+      ansible.builtin.debug:
+        msg: "Git commands failed, using fallback values"
+
+- name: "Set git-derived facts"
+  ansible.builtin.set_fact:
+    _git_repo_root: "{{ _git_repo_root_result.stdout if _git_repo_root_result.rc == 0 else lookup('env', 'PWD') }}"
+    _git_current_hash: "{{ _git_hash_result.stdout if _git_hash_result.rc == 0 else ansible_date_time.epoch }}"
+    _git_current_tag: "{{ _git_tag_result.stdout if _git_tag_result.rc == 0 and _git_tag_result.stdout else '' }}"
+
+- name: "Set final image name"
+  ansible.builtin.set_fact:
+    ci_image_name: "{{ _git_repo_root | basename }}"
+  when:
+    - ci_image_name | default("") | length == 0
+
+- name: "Update image tag list"
+  ansible.builtin.set_fact:
+    ci_image_tags: >-
+      {{
+        [_git_current_hash] +
+        ([_git_current_tag] if _git_current_tag else []) +
+        ['latest']
+      }}
+  when:
+    - ci_image_tags | default([]) | length == 0
+
+- name: "Set repository URL"
+  ansible.builtin.set_fact:
+    _repository: "{{ ci_container_registry }}/{{ ci_image_name }}"
+
+- name: "Debug git information"
+  ansible.builtin.debug:
+    msg:
+      - "Repository root: {{ _git_repo_root }}"
+      - "Current hash: {{ _git_current_hash }}"
+      - "Current tag: {{ _git_current_tag }}"
+      - "Image name: {{ ci_image_name }}"
+      - "Repository: {{ _repository }}"
+      - "Image tags: {{ ci_image_tags }}"
+  when: ci_debug_output | bool

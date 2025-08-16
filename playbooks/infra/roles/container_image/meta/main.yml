@@ -1,0 +1,24 @@
+# X-SPDX-License-Identifier: Apache-2.0
+---
+galaxy_info:
+  author: eco-ci-cd team
+  description: Build and push container images using podman
+  company: Red Hat
+  license: Apache-2.0
+  min_ansible_version: "2.15"
+  platforms:
+    - name: EL
+      versions:
+        - "8"
+        - "9"
+    - name: Fedora
+      versions:
+        - "38"
+        - "39"
+  galaxy_tags:
+    - container
+    - podman
+    - build
+    - image
+
+dependencies: []
