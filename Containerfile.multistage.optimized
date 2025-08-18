@@ -53,6 +53,7 @@ RUN if [ "${USE_VENV}" -eq 1 ]; then \
         echo "Activating venv" && \
         source "${VENV_DIR}/bin/activate"; \
     else \
+        rm -rf "${VENV_DIR}" && echo "Deleted ${VENV_DIR}"; \
         echo "Installing to system Python"; \
     fi && \
     echo "Installing packages..." && \
@@ -137,13 +138,7 @@ COPY --from=builder "/usr/local/bin" "/usr/local/bin"
 COPY --from=builder "${WORKDIR}" "${WORKDIR}"
 
 # Create optimized entrypoint
-RUN { \
-    echo '#!/usr/bin/env bash'; \
-    echo 'set -euo pipefail'; \
-    (test "${USE_VENV}" -eq 1 && echo "source ${VENV_DIR}/bin/activate" || true); \
-    echo 'exec "${@}"'; \
-    } > "${WORKDIR}/entrypoint.sh" && \
-    chmod +x "${WORKDIR}/entrypoint.sh" && \
+RUN chmod +x "${WORKDIR}/entrypoint.sh" && \
     # Remove unnecessary files
     find "${WORKDIR}" -name "*.pyc" -delete && \
     find "${WORKDIR}" -name "__pycache__" -type d -exec rm -rf {} + 2>/dev/null || true
