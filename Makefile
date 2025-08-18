@@ -26,6 +26,7 @@ ENV_FILE				?=
 ANSIBLE_ARGS			?=
 TBL_PRINT_SCRIPT		?= ./scripts/print_vars_as_table.py
 INVENTORY				?= inventories/infra/build-container.yml
+EXTRA_VARS				?=
 
 # Requirements files
 REQUIREMENTS_FILE		?= requirements.txt
@@ -108,11 +109,19 @@ print_vars:
 
 run-ansible-playbook:
 	source "$(VENV_NAME)/bin/activate" || (echo "Venv $(VENV_NAME) not found. run setup/setup-dev first" && exit 1) && \
-	export ANSIBLE_ARGS="$(ANSIBLE_ARGS) $(call resolve_extra_vars_file,$(PLAYBOOK)) $(ANSIBLE_VERBOSITY)" && \
+	export EXTRA_VARS="$(if $(call resolve_extra_vars_file,$(PLAYBOOK)),$(call resolve_extra_vars_file,$(PLAYBOOK)),) $(EXTRA_VARS)" && \
+	export ANSIBLE_ARGS="$${EXTRA_VARS} $(ANSIBLE_VERBOSITY) $(ANSIBLE_ARGS)" && \
 	export GIT_COMMIT_HASH="$(GIT_COMMIT_HASH)" && \
 	export GIT_COMMIT_TAG="$(GIT_COMMIT_TAG)" && \
 	export TIMESTAMP="$(TIMESTAMP)" && \
 	export TIMESTAMP_TAG="$(TIMESTAMP_TAG)" && \
+	$(PY_EXEC) $(TBL_PRINT_SCRIPT) \
+		EXTRA_VARS \
+		ANSIBLE_ARGS \
+		GIT_COMMIT_HASH \
+		GIT_COMMIT_TAG \
+		TIMESTAMP \
+		TIMESTAMP_TAG && \
 	echo "================ ansible-playbook command ==================" && \
 	echo "Running: ansible-playbook -i $(INVENTORY) $(PLAYBOOK) $${ANSIBLE_ARGS}"; \
 	ansible-playbook -i "$(INVENTORY)" "$(PLAYBOOK)" $${ANSIBLE_ARGS}
