@@ -1,0 +1,34 @@
+FROM registry.access.redhat.com/ubi9/ubi
+
+WORKDIR /eco-ci-cd
+
+# Install required packages
+RUN dnf -y install --setopt=install_weak_deps=False --setopt=tsdocs=False \
+    git-core \
+    openssh-clients \
+    python3.11 \
+    python3.11-pip \
+    && dnf clean all
+
+# Install ansible and ansible-lint
+RUN pip3 install --no-cache-dir \
+    ansible \
+    ansible-lint \
+    netaddr \
+    jmespath \
+    paramiko \
+    ncclient \
+    requests \
+    jira \
+    junitparser
+
+RUN alternatives --set python /usr/bin/python3
+
+# Copy application files to eco-ci-cd folder
+COPY . .
+# Install requirements
+RUN ansible-galaxy collection install -r requirements.yml
+
+# Set entrypoint to bash
+CMD = ["/eco-ci-cd/entrypoint.sh"]
+ENTRYPOINT ["/bin/bash"]
