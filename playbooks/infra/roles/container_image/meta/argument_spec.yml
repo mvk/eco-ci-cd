@@ -36,6 +36,12 @@ argument_specs:
         elements: str
         default: []
 
+      ci_image_tags_suffix:
+        description: |
+          String to append to all of the tags
+        type: str
+        default: ""
+
       ci_podman_arch:
         description: "Podman image architecture"
         type: str

@@ -48,3 +48,10 @@
       - "Build environment: {{ _build_environment }}"
       - "Podman build options: {{ ci_podman_build_options }}"
   when: ci_debug_output | bool
+
+- name: Update image tag list with suffix
+  ansible.builtin.set_fact:
+    ci_image_tags: "{{ ci_image_tags | map('regex_replace', '$', ci_image_tags_suffix) | list }}"
+  when:
+    - ci_image_tags | default([]) | length > 0
+    - ci_image_tags_suffix | length > 0

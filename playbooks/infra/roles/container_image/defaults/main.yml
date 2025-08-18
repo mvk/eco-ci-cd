@@ -14,6 +14,9 @@ ci_image_name: ""
 # Image tags to apply
 ci_image_tags: []
 
+# image tag suffix
+ci_image_tags_suffix: ""
+
 # Podman build options
 ci_podman_build_options: []
 
