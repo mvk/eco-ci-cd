@@ -9,11 +9,16 @@
 - name: "Debug on vars"
   ansible.builtin.debug:
     msg:
-      - "current_dir: {{ current_dir }}"
+      - "_repository: {{ _repository }}"
       - "ci_containerfile: {{ ci_containerfile }}"
+      - "ci_image_name: {{ ci_image_name }}"
+      - "ci_image_tags: {{ ci_image_tags }}"
+      - "ci_image_tags_suffix: {{ ci_image_tags_suffix }}"
+      - "ci_podman_arch: {{ ci_podman_arch }}"
       - "ci_podman_build_options: {{ ci_podman_build_options }}"
       - "ci_podman_extra_args: {{ ci_podman_extra_args }}"
-      - "ci_podman_arch: {{ ci_podman_arch }}"
+      - "current_dir: {{ current_dir }}"
+    verbosity: 2
 
 - name: "Build container image"
   containers.podman.podman_image:
