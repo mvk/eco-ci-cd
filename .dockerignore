@@ -14,7 +14,6 @@
 !scripts/
 
 # But exclude specific subdirs even from allowed directories
-playbooks/cnf/reporting/
 playbooks/infra/reporting/vars/
 
 # Also exclude common unwanted patterns from allowed dirs
