@@ -6,6 +6,7 @@
 !requirements.txt
 !requirements.yml
 !ansible.cfg
+!entrypoint.sh
 
 # Essential directories
 !playbooks/
