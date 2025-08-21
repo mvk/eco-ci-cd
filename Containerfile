@@ -2,21 +2,22 @@
 # Single-stage build for eco-ci-cd optimized for size
 FROM registry.redhat.io/ubi9/ubi-minimal:latest
 
-ARG ANSIBLE_COLLECTIONS_PATH=${ANSIBLE_COLLECTIONS_PATH:-"/usr/share/ansible/collections"}
+ARG PKG_MANAGER=${PKG_MANAGER:-"microdnf"}
+# settings for dnf:
+# ARG OPTS_PKG_MANAGER=${OPTS_PKG_MANAGER:-"--setopt=install_weak_deps=False --setopt=tsdocs=False"}
+# settings for microdnf:
+ARG OPTS_PKG_MANAGER=${OPTS_PKG_MANAGER:-" --nodocs --setopt=install_weak_deps=0"}
 ARG PY_EXEC=${PY_EXEC:-"python3.11"}
 ARG WORKDIR=${WORKDIR:-"/eco-ci-cd"}
 ARG VENV_DIR=${VENV_DIR:-"${WORKDIR}/.venv"}
 ARG USE_VENV=${USE_VENV:-1}
-# settings for dnf:
-# ARG OPTS_DNF=${OPTS_DNF:-"--setopt=install_weak_deps=False --setopt=tsdocs=False"}
-# settings for microdnf:
-ARG OPTS_DNF=${OPTS_DNF:-" --nodocs --setopt=install_weak_deps=0"}
 ARG OPTS_PIP=${OPTS_PIP:-"--prefer-binary --no-cache-dir --no-compile"}
 ARG OPTS_GALAXY=${OPTS_GALAXY:-"--no-cache --force --pre"}
 ARG DEV_MODE=${DEV_MODE:-0}
 ARG DEV_DNF_PACKAGES=${DEV_DNF_PACKAGES:-""}
 ARG DEV_PIP_PACKAGES=${DEV_PIP_PACKAGES:-""}
 ARG PIP_REQS=${PIP_REQS:-"requirements.txt"}
+ARG ANSIBLE_COLLECTIONS_PATH=${ANSIBLE_COLLECTIONS_PATH:-"/usr/share/ansible/collections"}
 
 # Set up environment variables
 ENV ANSIBLE_COLLECTIONS_PATH="${ANSIBLE_COLLECTIONS_PATH}" \
@@ -26,9 +27,9 @@ ENV ANSIBLE_COLLECTIONS_PATH="${ANSIBLE_COLLECTIONS_PATH}" \
 WORKDIR "${WORKDIR}"
 
 # Install packages with microdnf
-RUN microdnf -y update $OPTS_DNF && \
+RUN ${PKG_MANAGER} -y update ${OPTS_PKG_MANAGER} && \
     # Install only essential runtime packages
-    microdnf -y install $OPTS_DNF \
+    ${PKG_MANAGER} -y install ${OPTS_PKG_MANAGER} \
         alternatives \
         findutils \
         git-core \
@@ -46,7 +47,7 @@ RUN microdnf -y update $OPTS_DNF && \
     alternatives --install /usr/bin/python3 python3 /usr/bin/${PY_EXEC} 10 && \
     alternatives --auto python3 && \
     # Clean package manager cache immediately
-    microdnf clean all && \
+    ${PKG_MANAGER} clean all && \
     rm -rf /var/cache/yum /var/cache/dnf
 
 # Copy all essential files (controlled by .dockerignore negative patterns)
