@@ -1,8 +1,27 @@
-.ansible
-.vscode
-.gitignore
-*.md
-.idea
-*__pycache__*
-tests
-.github
+# .dockerignore - Negative ignore pattern: Allow only essential files
+# Ignore everything first
+**
+
+# Essential directories
+!playbooks/
+!inventories/
+!scripts/
+
+# Essential config files
+!requirements.yml
+!ansible.cfg
+
+# But exclude specific subdirs even from allowed directories
+playbooks/infra/reporting/vars/
+**/unit/
+**/fixtures/
+
+# Also exclude common unwanted patterns from allowed dirs
+**/.ansible
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/.DS_Store
+**/*.log
+**/*.key
+
