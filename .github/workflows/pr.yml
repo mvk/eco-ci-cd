@@ -1,0 +1,67 @@
+---
+name: Pull Request Validation
+on:
+  pull_request:
+    branches:
+      - "*"
+
+env:
+  PYTHON_VERSION: "3.11"
+jobs:
+  pytest:
+    name: Python Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Code Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          py_exec="python${{ env.PYTHON_VERSION }}"
+          "${py_exec}" -m pip install --upgrade pip
+          if [ -f pip-dev.txt ]; then "${py_exec}" -m pip install -r pip-dev.txt; fi
+
+      - name: Run pytest
+        run: pytest -v
+
+  lint:
+    name: Ansible Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Code Checkout
+        uses: actions/checkout@v4
+
+      - name: Run ansible-lint
+        uses: ansible/ansible-lint@v25
+        with:
+          args: "-v"
+
+  sanity:
+    name: Ansible Playbooks Sanity
+    runs-on: ubuntu-latest
+    steps:
+      - name: Code Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install Ansible
+        run: |
+          py_exec="python${{ env.PYTHON_VERSION }}"
+          "${py_exec}" -m pip install --upgrade pip
+          if [ -f pip.txt ]; then "${py_exec}" -m pip install -r pip.txt; fi
+          if [ -f requirements.yml ]; then ansible-galaxy install -r requirements.yml; fi
+
+      - name: Make sanity tests script executable
+        run: chmod +x hack/sanity_tests.sh
+
+      - name: Run Ansible Playbook Sanity Checks
+        run: ./hack/sanity_tests.sh
